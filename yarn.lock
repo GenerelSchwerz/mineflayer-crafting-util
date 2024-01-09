@@ -1657,10 +1657,8 @@ minecraft-protocol@^1.44.0:
     uuid-1345 "^1.0.1"
     yggdrasil "^1.4.0"
 
-mineflayer-crafting-util@0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/mineflayer-crafting-util/-/mineflayer-crafting-util-0.0.6.tgz#87662913eeddb81380fb452a137ebf46f1bf8546"
-  integrity sha512-SLLX+IYNyALKURMz15qN5WzOMSK0k7i3hAMUZeNUj+Ims1fl2zE1Eg07tNOnGGWLd9JzY7kOFHcAUzMfENJ8QQ==
+"mineflayer-crafting-util@file:.":
+  version "0.0.8"
 
 mineflayer@^4.17.0:
   version "4.17.0"

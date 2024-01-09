@@ -57,7 +57,8 @@ bot.once("spawn", () => {
         const inventory = bot.inventory.items()
         for (const item of inventory) {
             if (item.name === "air") continue;
-            const mdItem = bot.registry.items[item.id]
+            const mdItem = bot.registry.items[item.type]
+            if (!mdItem) continue;
             if (mdItem.stackSize === 1) {
                 bot.tossStack(item)
             }
@@ -77,6 +78,12 @@ bot.once("spawn", () => {
     
     
         switch (cmd) {
+            case "log":
+                logInventory()
+                break;
+            case "clear":
+                clearInventory()
+                break;             
             case "plan":
                 const name = args[0];
                 const amt = parseInt(args[1] ?? "1");
@@ -126,12 +133,15 @@ bot.once("spawn", () => {
                 console.log(plan2.itemsRequired.map(stringifyItem).join(", "))
                 for (const info of plan2.recipesToDo) {
                     console.log(info.recipe.delta.map(stringifyItem).join(", "))
-                    await bot.chat(`Crafting ${info.recipe.result.name} x ${info.recipe.result.count}`)
+                    await bot.chat(`Crafting ${bot.registry.items[info.recipe.result.id].name} x ${info.recipe.result.count}`)
                     await bot.craft(info.recipe, info.recipeApplications, craftingTable)
                     await bot.waitForTicks(10)
                 }
 
-                await bot.chat(`Crafted ${item2.count} ${item2.name}`)
+                const mdItem3 = bot.registry.items[item2.id];
+                await bot.chat(`Crafted ${mdItem3.name} ${item2.count}`)
+                const equipItem = bot.inventory.items().find(i=>i.type === item2.id)
+                await bot.equip(equipItem, "hand")
                 break;
         }
     })
