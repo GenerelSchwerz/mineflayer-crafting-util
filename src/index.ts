@@ -1,10 +1,11 @@
 import { inject } from './craftingInjection'
-import type { Item, CraftOptions } from './types'
+import type { Item, CraftOptions, CraftingPlan } from './types'
 
 
 declare module 'mineflayer' {
   interface Bot {
-    planCraft(wantedItem: Item, options: CraftOptions): void
+    planCraft(wantedItem: Item, options?: CraftOptions): CraftingPlan
+    planCraftInventory(wantedItem: Item): CraftingPlan;
   }
 }
 

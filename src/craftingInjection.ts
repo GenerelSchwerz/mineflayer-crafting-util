@@ -233,12 +233,12 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
 
     // rough, but easy way to patch out items that are already available.
     // can clean up later.
-    // if (!opts.careAboutExisting && !!opts.availableItems) {
-    //     const found = opts.availableItems.filter((e) => e.id === item.id);
-    //     for (const f of found) {
-    //         opts.availableItems.splice(opts.availableItems.indexOf(f), 1);
-    //     }
-    // }
+    if (!opts.careAboutExisting && !!opts.availableItems) {
+        const found = opts.availableItems.filter((e) => e.id === item.id);
+        for (const f of found) {
+            opts.availableItems.splice(opts.availableItems.indexOf(f), 1);
+        }
+    }
     const ret = _newCraft(item, opts, seen);
 
     const availableItems = opts.availableItems;
@@ -246,8 +246,6 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
     const ret1 = ret as CraftingPlan;
     // due to multiple recipes, preserve order of items required.
     if (availableItems !== undefined) {
-      
-    console.log('hey there')
       ret1.requiresCraftingTable = ret.recipesToDo.some((r) => r.recipe.requiresTable);
       return ret1;
     }
@@ -257,7 +255,6 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
     const map: Record<string, number> = {};
 
     if (!opts.includeRecursion) {
-      // const mappings = ret.recipesToDo.map(r=>r.recipe.delta)
       hey: while (ret.recipesToDo.length > 0) {
         // remove single-level loops
         let change = 0;
@@ -361,4 +358,18 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
   }
 
   bot.planCraft = newCraft;
+
+
+  function craftWithInventory(wantedItem: Item) {
+    const items = bot.inventory.slots.filter(i=>!!i).map(i=>{return{id: i!.type, count: i!.count}})
+    return newCraft(wantedItem, {
+      availableItems: items,
+      careAboutExisting: false,
+      includeRecursion: true,
+      multipleRecipes: true
+    })
+
+  }
+
+  bot.planCraftInventory = craftWithInventory
 }
