@@ -1,7 +1,7 @@
 import type { Bot, BotOptions } from "mineflayer";
 import type { Recipe as PRecipe } from "prismarine-recipe";
 import type { CraftOptions, Item } from "./types";
-import type { CraftingPlan } from "mineflayer-crafting-util/lib/types";
+import type { CraftingPlan } from "./types";
 
 const gettableItems = [263, 264, 265, 266, 296, 331, 341, 388]; // TODO : should be replaced by smelting recipe data
 
@@ -35,7 +35,6 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
     if (availableItems !== undefined) {
       matchingItem = availableItems.find((e) => e.id === id && e.count >= target);
       if (matchingItem != null) {
-        // console.log("already have", itemsMap[id].name, matchingItem.count, count, target);
         if (matchingItem.count >= target) {
           return { success: true, itemsRequired: [], recipesToDo: [] }; // already have item, no need to craft it.
         } else {
@@ -43,11 +42,12 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
         }
       }
 
+      if (recipes.length == 0 || gettableItems.includes(id)) {
+        return { success: true, itemsRequired: [item], recipesToDo: [] };
+      }
+
+
       if (seen.has(id)) {
-        // seen.clear();
-        if (!includeRecursion) {
-          return { success: false, itemsRequired: [item], recipesToDo: [] };
-        }
         return { success: false, itemsRequired: [item], recipesToDo: [] };
       }
 
@@ -60,6 +60,7 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
       if (recipeWanted != null) {
       } else {
         // since no recipes exist with all items available, search for the recipe with the most amount of items available inline
+        
         const recipes1 = recipes;
 
         const deltas = recipes
@@ -97,7 +98,7 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
           // do craft on all ingredients of current recipe
           inner: for (const ing of ingredients) {
             const data = _newCraft({ id: ing.id, count: -ing.count }, opts, seen);
-            if (!data.success) continue outer;
+            if (!data.success) continue inner;
             results.push(data);
 
             ret1.push(...data.recipesToDo);
@@ -117,6 +118,7 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
 
           // if we successfully crafted all ingredients, we can craft this recipe
           if (results.length === ingredients.length) {
+
             // with our available items properly managed now, we can do the standard crafting option.
             let test;
             let attemptCount = count - craftedCount;
@@ -138,7 +140,7 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
               for (const ing of toDo.recipe.delta) {
                 const index = currentItems.findIndex((e) => e.id === ing.id);
                 const num = (currentItems[index]?.count ?? 0) + ing.count * toDo.recipeApplications;
-                if (num < 0) {
+                if (num < 0) { // this should never happen, but just in case.
                   return { success: false, itemsRequired: [item], recipesToDo: [] };
                 }
                 if (index !== -1) {
@@ -216,7 +218,7 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
         };
       },
       { success: true, itemsRequired: [] as Item[], recipesToDo: [{ recipeApplications, recipe: recipeWanted }] }
-    ) as any;
+    );
 
     seen.clear();
 
@@ -225,13 +227,18 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
 
   function newCraft(
     item: Item,
-    opts: {
-      includeRecursion?: boolean;
-      multipleRecipes?: boolean;
-      availableItems?: Item[];
-    } = {}
+    opts: CraftOptions = {}
   ): CraftingPlan {
     const seen = new Map();
+
+    // rough, but easy way to patch out items that are already available.
+    // can clean up later.
+    // if (!opts.careAboutExisting && !!opts.availableItems) {
+    //     const found = opts.availableItems.filter((e) => e.id === item.id);
+    //     for (const f of found) {
+    //         opts.availableItems.splice(opts.availableItems.indexOf(f), 1);
+    //     }
+    // }
     const ret = _newCraft(item, opts, seen);
 
     const availableItems = opts.availableItems;
@@ -240,6 +247,7 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
     // due to multiple recipes, preserve order of items required.
     if (availableItems !== undefined) {
       
+    console.log('hey there')
       ret1.requiresCraftingTable = ret.recipesToDo.some((r) => r.recipe.requiresTable);
       return ret1;
     }

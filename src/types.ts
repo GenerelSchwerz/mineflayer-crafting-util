@@ -5,6 +5,7 @@ export interface Item { id: number, count: number }
 export interface CraftOptions {
   includeRecursion?: boolean
   multipleRecipes?: boolean
+  careAboutExisting?: boolean
   availableItems?: Item[]
 }
 

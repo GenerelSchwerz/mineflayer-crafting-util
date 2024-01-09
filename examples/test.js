@@ -53,14 +53,15 @@ bot.once("spawn", () => {
         return craftingTable;
     }
 
-    function clearInventory() {
-        const inventory = bot.inventory.items()
+    async function clearInventory() {
+        const inventory = bot.inventory.slots
         for (const item of inventory) {
+            if (!item) continue;
             if (item.name === "air") continue;
             const mdItem = bot.registry.items[item.type]
             if (!mdItem) continue;
             if (mdItem.stackSize === 1) {
-                bot.tossStack(item)
+                await bot.tossStack(item)
             }
         }
     }
@@ -81,7 +82,7 @@ bot.once("spawn", () => {
             case "log":
                 logInventory()
                 break;
-            case "clear":
+            case "drop":
                 clearInventory()
                 break;             
             case "plan":
@@ -118,6 +119,7 @@ bot.once("spawn", () => {
                 
                 if (plan2.success === false) {
                     await bot.chat("Can't craft that")
+                    console.log(plan2)
                     return;
                 }
 
