@@ -238,7 +238,7 @@ export async function inject (bot: Bot, options: BotOptions): Promise<void> {
     const availableItems = opts.availableItems
 
     // due to multiple recipes, preserve order of items required.
-    if (multipleRecipes && availableItems !== undefined) {
+    if (availableItems !== undefined) {
       return ret
     }
 

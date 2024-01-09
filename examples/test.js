@@ -53,6 +53,21 @@ bot.once("spawn", () => {
         return craftingTable;
     }
 
+    function clearInventory() {
+        const inventory = bot.inventory.items()
+        for (const item of inventory) {
+            if (item.name === "air") continue;
+            const mdItem = bot.registry.items[item.id]
+            if (mdItem.stackSize === 1) {
+                bot.tossStack(item)
+            }
+        }
+    }
+
+    function normalizeInventoryToItems() {
+        return bot.inventory.items().map(item => {return {id: item.type, count: item.count}})
+    }
+
       
 
 
@@ -87,13 +102,36 @@ bot.once("spawn", () => {
                     await bot.chat("Item not found")
                     return;
                 }
-                const item2 = {id: mdItem2.id, count: amt2}
-                
 
-                const plan2 = bot.planCraft(item2)         
-                for (const recipe of plan2.recipesToDo) {
-                    await bot.craft(plan2)
+                const items = normalizeInventoryToItems()
+                console.log(items.map(stringifyItem).join(", "))
+
+                const item2 = {id: mdItem2.id, count: amt2}
+                const plan2 = bot.planCraft(item2, {availableItems: items})  
+                
+                if (plan2.success === false) {
+                    await bot.chat("Can't craft that")
+                    return;
                 }
+
+                let craftingTable = false;
+                if (plan2.requiresCraftingTable) {
+                    craftingTable = findCraftingTable()
+                    if (!craftingTable) {
+                        bot.chat("No crafting table found")
+                        return;
+                    }
+
+                }
+                console.log(plan2.itemsRequired.map(stringifyItem).join(", "))
+                for (const info of plan2.recipesToDo) {
+                    console.log(info.recipe.delta.map(stringifyItem).join(", "))
+                    await bot.chat(`Crafting ${info.recipe.result.name} x ${info.recipe.result.count}`)
+                    await bot.craft(info.recipe, info.recipeApplications, craftingTable)
+                    await bot.waitForTicks(10)
+                }
+
+                await bot.chat(`Crafted ${item2.count} ${item2.name}`)
                 break;
         }
     })
