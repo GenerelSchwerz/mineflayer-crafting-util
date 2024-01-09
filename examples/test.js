@@ -40,13 +40,29 @@ bot.once("spawn", () => {
         return items
     }
 
+    function findCraftingTable() {
+        const craftingTable = bot.findBlock({
+            matching: bot.registry.blocksByName.crafting_table.id,
+            maxDistance: 3
+        })
+
+        if (!craftingTable) {
+            bot.chat("No crafting table found")
+            return;
+        }
+        return craftingTable;
+    }
+
+      
+
+
 
     bot.on('chat', async (username, message) => { 
         const [cmd, ...args] = message.split(" ")
     
     
         switch (cmd) {
-            case "craft":
+            case "plan":
                 const name = args[0];
                 const amt = parseInt(args[1] ?? "1");
     
@@ -61,6 +77,23 @@ bot.once("spawn", () => {
                 console.log(plan)
 
                 await bot.chat(beautifyPlan(plan))
+                break;
+            case "craft":
+                const name2 = args[0];
+                const amt2 = parseInt(args[1] ?? "1");
+    
+                const mdItem2 = bot.registry.itemsByName[name2];
+                if (!mdItem2) {
+                    await bot.chat("Item not found")
+                    return;
+                }
+                const item2 = {id: mdItem2.id, count: amt2}
+                
+
+                const plan2 = bot.planCraft(item2)         
+                for (const recipe of plan2.recipesToDo) {
+                    await bot.craft(plan2)
+                }
                 break;
         }
     })

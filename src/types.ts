@@ -14,8 +14,9 @@ export interface RecipeInfo {
 
 }
 
-export interface CraftReturnType {
+export interface CraftingPlan {
   success: boolean
   itemsRequired: Item[]
   recipesToDo: RecipeInfo[]
+  requiresCraftingTable: boolean
 }

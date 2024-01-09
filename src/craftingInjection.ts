@@ -1,6 +1,7 @@
 import type { Bot, BotOptions } from 'mineflayer'
 import type { Recipe as PRecipe } from 'prismarine-recipe'
 import type { CraftOptions, Item } from './types'
+import type { CraftingPlan } from 'mineflayer-crafting-util/lib/types'
 
 const gettableItems = [263, 264, 265, 266, 296, 331, 341, 388] // TODO : should be replaced by smelting recipe data
 
@@ -229,7 +230,7 @@ export async function inject (bot: Bot, options: BotOptions): Promise<void> {
       multipleRecipes?: boolean
       availableItems?: Item[]
     } = {}
-  ) {
+  ): CraftingPlan {
     const seen = new Map()
     const ret = _newCraft(item, opts, seen)
 
@@ -346,8 +347,10 @@ export async function inject (bot: Bot, options: BotOptions): Promise<void> {
       ret.itemsRequired.push({ id: key1, count: val >= 0 ? 0 : -val })
     }
 
+    (ret as any).requiresCraftingTable = ret.recipesToDo.some((r) => r.recipe.requiresTable)
     return ret
   }
 
   bot.planCraft = newCraft
 }
+
