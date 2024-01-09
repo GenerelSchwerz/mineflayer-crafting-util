@@ -1,0 +1,48 @@
+{
+  "name": "mineflayer-crafting-util",
+  "version": "0.0.3",
+  "description": "A plugin to simplify crafting recipes.",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "ts-standard && npx tsc",
+    "clean": "rm -rf lib",
+    "test": "node --trace-warnings examples/webserver_static_layout.js",
+    "fix-lint": "ts-standard --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GenerelSchwerz/mineflayer-crafting-util.git"
+  },
+  "keywords": [
+    "bot",
+    "mineflayer",
+    "minecraft",
+    "crafting"
+  ],
+  "author": "GenerelSchwerz",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/GenerelSchwerz/mineflayer-crafting-util/issues"
+  },
+  "homepage": "https://github.com/GenerelSchwerz/mineflayer-crafting-util#readme",
+  "files": [
+    "lib/**/*"
+  ],
+  "ts-standard": {
+    "ignore": [
+      "lib",
+      "examples"
+    ]
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "mineflayer": "^4.17.0",
+    "mineflayer-crafting-util": "0.0.3",
+    "ts-standard": "^12.0.2",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
