@@ -1,2 +1,2 @@
 # mineflayer-crafting-util
-Simplfy crafting, forever.
+Simplify crafting, forever.
