@@ -1,6 +1,6 @@
 {
   "name": "mineflayer-crafting-util",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "A plugin to simplify crafting recipes.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
