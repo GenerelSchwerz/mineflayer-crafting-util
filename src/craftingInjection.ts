@@ -233,12 +233,26 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
 
     // rough, but easy way to patch out items that are already available.
     // can clean up later.
-    if (!opts.careAboutExisting && !!opts.availableItems) {
+    if (!!opts.availableItems) {
+
+      if (!opts.careAboutExisting) {
         const found = opts.availableItems.filter((e) => e.id === item.id);
         for (const f of found) {
             opts.availableItems.splice(opts.availableItems.indexOf(f), 1);
         }
+      }
+
+      // normalize items, bug pointed out by Vakore.
+      const seen = new Set();
+      for (const item of opts.availableItems) {
+        if (seen.has(item.id)) {
+          opts.availableItems.splice(opts.availableItems.indexOf(item), 1);
+          opts.availableItems.find((e) => e.id === item.id)!.count += item.count; 
+        }
+      }
     }
+
+
     const ret = _newCraft(item, opts, seen);
 
     const availableItems = opts.availableItems;

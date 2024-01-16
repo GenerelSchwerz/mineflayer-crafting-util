@@ -79,13 +79,22 @@ bot.once("spawn", () => {
     
     
         switch (cmd) {
+            case "testall":
+                try {
+                    Object.values(bot.registry.itemsByName).forEach((i)=> bot.planCraft({id: i.id, count: 1}))
+                    bot.chat('All items succeeded!')
+                } catch (e) {
+                    bot.chat('Had an error. Check console.')
+                    console.log(e)
+                }
+                break;
             case "log":
                 logInventory()
                 break;
             case "drop":
                 clearInventory()
-                break;             
-            case "plan":
+                break;     
+            case "plan": {
                 const name = args[0];
                 const amt = parseInt(args[1] ?? "1");
     
@@ -101,6 +110,7 @@ bot.once("spawn", () => {
 
                 await bot.chat(beautifyPlan(plan))
                 break;
+            }
             case "craft":
                 const name2 = args[0];
                 const amt2 = parseInt(args[1] ?? "1");
