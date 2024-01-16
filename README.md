@@ -22,5 +22,8 @@ const plan = bot.planCraft(sticks)
 ```
 
 
-### Installation
-`npm i mineflayer-crafting-util`
+## Installation
+
+It must be installed via a node package manager.
+node: `npm i mineflayer-crafting-util`
+yarn: `yarn add mineflayer-crafting-util`
