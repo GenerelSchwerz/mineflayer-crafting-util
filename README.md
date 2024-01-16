@@ -18,5 +18,9 @@ bot.loadPlugin(crafter)
 
 
 const sticks = {id: bot.registry.itemsByName.stick.id, count: 1}
-const plan = bot.planCraft(item2, {availableItems: items})    
+const plan = bot.planCraft(sticks)    
 ```
+
+
+### Installation
+`npm i mineflayer-crafting-util`
