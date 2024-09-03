@@ -5,8 +5,9 @@ import type { CraftingPlan } from "./types";
 
 const gettableItems = [263, 264, 265, 266, 296, 331, 341, 388]; // TODO : should be replaced by smelting recipe data
 
-export async function inject(bot: Bot, options: BotOptions): Promise<void> {
-  const Recipe = (await import("prismarine-recipe")).default(bot.registry).Recipe;
+type CraftingFunc = (item: Item, opts?: CraftOptions) => CraftingPlan
+
+export function _build(Recipe: typeof PRecipe): CraftingFunc {
 
   function _newCraft(
     item: Item,
@@ -249,6 +250,7 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
           opts.availableItems.splice(opts.availableItems.indexOf(item), 1);
           opts.availableItems.find((e) => e.id === item.id)!.count += item.count; 
         }
+        seen.add(item.id);
       }
     }
 
@@ -371,6 +373,15 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
     return ret1;
   }
 
+
+  return newCraft;
+}
+
+
+export async function injectBot(bot: Bot, botoptions: BotOptions): Promise<void> {
+  const Recipe = (await import("prismarine-recipe")).default(bot.registry).Recipe;
+  const newCraft = _build(Recipe)
+
   bot.planCraft = newCraft;
 
 
@@ -386,4 +397,10 @@ export async function inject(bot: Bot, options: BotOptions): Promise<void> {
   }
 
   bot.planCraftInventory = craftWithInventory
+
+}
+
+export async function buildStatic(mcVersion: string): Promise<CraftingFunc> {
+  const Recipe = (await import("prismarine-recipe")).default(mcVersion).Recipe;
+  return _build(Recipe)
 }

@@ -1,4 +1,4 @@
-import { inject } from './craftingInjection'
+import { injectBot } from './craftingInjection'
 import type { Item, CraftOptions, CraftingPlan } from './types'
 
 
@@ -10,5 +10,6 @@ declare module 'mineflayer' {
 }
 
 
-export default inject
-export const plugin = inject
+
+export default injectBot
+export { buildStatic, injectBot as plugin } from './craftingInjection'
