@@ -478,7 +478,7 @@ bot.planCraftInventory(wantedItem: Item): CraftingPlan
 ```
 | Parameter | Type | Description |
 | --- | --- | --- |
-| wantedItem | <code><a href="">Item</a></code> | The item to craft |
+| wantedItem | <code><a href="#item">Item</a></code> | The item to craft |
 
 
 ### Static Functions
