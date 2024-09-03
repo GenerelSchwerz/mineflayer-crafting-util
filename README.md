@@ -500,7 +500,7 @@ bot.planCraftInventory(wantedItem: Item): CraftingPlan
 | --- | --- | --- |
 | success | boolean | Whether the crafting plan was successful |
 | itemsRequired | <code><a href="#item">Item</a>[]</code> | The items required to craft the item |
-| recipesToDo | <code>Array<{ recipeApplications: number; recipe: <a href="https://github.com/PrismarineJS/prismarine-item/tree/master?tab=readme-ov-file#itemtype-count-metadata-nbt-stackid-sentbyserver">Recipe</a> }></code> | The recipes to craft the item |
+| recipesToDo | <code>Array<{ recipeApplications: number; recipe: <a href="https://github.com/PrismarineJS/prismarine-recipe?tab=readme-ov-file#recipefinditemtype-metadata">Recipe</a> }></code> | The recipes to craft the item |
 
 #### CraftOptions
 | Property | Type | Default | Description |
