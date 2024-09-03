@@ -1,6 +1,6 @@
 {
   "name": "mineflayer-crafting-util",
-  "version": "0.0.18",
+  "version": "0.1.0",
   "description": "A plugin to simplify crafting recipes.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -35,8 +35,8 @@
     ]
   },
   "devDependencies": {
-    "mineflayer-crafting-util": "file:./",
     "mineflayer": "^4.17.0",
+    "mineflayer-crafting-util": "file:./",
     "ts-standard": "^12.0.2",
     "typescript": "^5.3.3"
   },
