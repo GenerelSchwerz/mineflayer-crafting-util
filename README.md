@@ -469,8 +469,8 @@ bot.planCraft(item: Item, opts?: CraftOptions): CraftingPlan
 ```
 | Parameter | Type | Description |
 | --- | --- | --- |
-| item | <code><a href="">Item</a></code> | The item to craft |
-| opts | <code><a href="">CraftOptions</a></code> | The options for crafting |
+| item | <code><a href="#item">Item</a></code> | The item to craft |
+| opts | <code><a href="#craftoptions">CraftOptions</a></code> | The options for crafting |
 
 #### bot.planCraftInventory
 ```ts
