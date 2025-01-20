@@ -16,9 +16,16 @@ const bot = mineflayer.createBot({
 
 bot.loadPlugin(crafter)
 
-
+// what we want to craft
 const sticks = {id: bot.registry.itemsByName.stick.id, count: 1}
+
+// the plan created to craft said item
 const plan = bot.planCraft(sticks)    
+
+// using the plan to craft the item
+for (const info of plan.recipesToDo) {
+  await bot.craft(info.recipe, info.recipeApplications, /* crafting table */)
+}
 ```
 
 
@@ -40,10 +47,13 @@ async function main(mcVersion: string) {
 ```
 
 
+
 ## Installation
 
 It must be installed via a node package manager.
+
 node: `npm i mineflayer-crafting-util`
+
 yarn: `yarn add mineflayer-crafting-util`
 
 
