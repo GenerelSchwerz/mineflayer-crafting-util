@@ -14,8 +14,6 @@ function beautifyPlan(registry, plan) {
       const items = recipe.ingredients.map(stringifyItem.bind(null,registry)).join(", ")
       return `${items} => ${stringifyItem(registry,recipe.result)}  (x${recipeApplications})`
     } else {
-      // console.log('delta', recipe.delta)
-      // iterate over delta, normalize items in it and stringify them
       const items = recipe.delta.filter(i=>i.count<0).map(stringifyItem.bind(null,registry)).join(", ")
       return `${items} => ${stringifyItem(registry,recipe.result)}  (x${recipeApplications})`
     }
