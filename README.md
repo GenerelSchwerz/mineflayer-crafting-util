@@ -82,7 +82,7 @@ bot.planCraftInventory(wantedItem: Item): CraftingPlan
 
 
 ### Static Functions
-<i>The static function provided is the same as <a href="#botplancraft"><code>bot.planCraft</code>.</i>
+<i>The static function provided is the same as <a href="#botplancraft"><code>bot.planCraft</code></i>.
 
 
 ## Types
