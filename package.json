@@ -7,7 +7,8 @@
   "scripts": {
     "build": "npx tsc",
     "clean": "rm -rf lib",
-    "fix-lint": "ts-standard --fix"
+    "fix-lint": "ts-standard --fix",
+    "prepare": "npm run build"
   },
   "repository": {
     "type": "git",
