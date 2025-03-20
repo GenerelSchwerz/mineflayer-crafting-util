@@ -27,7 +27,7 @@ jobs:
             const { testedVersions } = require('mineflayer/lib/version');
             console.log('matrix=' + JSON.stringify({ include: testedVersions.map(mcVersion => ({ mcVersion })) }));
           ")
-          echo "$MATRIX" >> $GITHUB_OUTPUT
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   RunMinecraftScript:
     needs: PrepareSupportedVersions
@@ -44,5 +44,7 @@ jobs:
           node-version: 22.x
       - name: Install Dependencies
         run: npm install
+      - name: Set MC_VERSION Environment Variable
+        run: echo "MC_VERSION=${{ matrix.mcVersion }}" >> $GITHUB_ENV
       - name: Run Node.js Script with Minecraft Version
-        run: node tests/ci.js ${{ matrix.mcVersion }}
+        run: npx mocha tests/ci.test.js
