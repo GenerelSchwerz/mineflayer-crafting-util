@@ -1,4 +1,4 @@
-const mcVersion = "1.21"
+const mcVersion = "1.21.4"
 
 function stringifyItem(registry, item) {
   const mdItem = registry.items[item.id]
