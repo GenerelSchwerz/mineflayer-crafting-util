@@ -379,7 +379,7 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
 
 
 export async function injectBot(bot: Bot, botoptions: BotOptions): Promise<void> {
-  const Recipe = (await import("prismarine-recipe")).default(bot.registry).Recipe;
+  const Recipe = (await import("prismarine-recipe")).default(bot.version).Recipe;
   const newCraft = _build(Recipe)
 
   bot.planCraft = newCraft;
