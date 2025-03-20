@@ -1,4 +1,4 @@
-const mcVersion = "1.21.4"
+const mcVersion = "1.21"
 
 function stringifyItem(registry, item) {
   const mdItem = registry.items[item.id]
@@ -26,7 +26,7 @@ function beautifyPlan(registry, plan) {
 async function main(mcVersion) {
 
   const mcData = require("minecraft-data")(mcVersion)
-  const crafter = await require("mineflayer-crafting-util").buildStatic(mcVersion) // buildStatic is async
+  const crafter = await require("mineflayer-crafting-util").buildStatic(mcData) // buildStatic is async
 
   const wantedItemName = process.argv[2] || "wooden_pickaxe"
   const wantedAmount = parseInt(process.argv[3]) || 1

@@ -2,6 +2,7 @@ import type { Bot, BotOptions } from "mineflayer";
 import type { Recipe as PRecipe } from "prismarine-recipe";
 import type { CraftOptions, Item } from "./types";
 import type { CraftingPlan } from "./types";
+import type {IndexedData} from 'minecraft-data'
 
 const gettableItems = [263, 264, 265, 266, 296, 331, 341, 388]; // TODO : should be replaced by smelting recipe data
 
@@ -379,7 +380,8 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
 
 
 export async function injectBot(bot: Bot, botoptions: BotOptions): Promise<void> {
-  const Recipe = (await import("prismarine-recipe")).default(bot.version).Recipe;
+  // @ts-expect-error
+  const Recipe = (await import("prismarine-recipe")).default(bot.registry).Recipe; 
   const newCraft = _build(Recipe)
 
   bot.planCraft = newCraft;
@@ -400,7 +402,8 @@ export async function injectBot(bot: Bot, botoptions: BotOptions): Promise<void>
 
 }
 
-export async function buildStatic(mcVersion: string): Promise<CraftingFunc> {
-  const Recipe = (await import("prismarine-recipe")).default(mcVersion).Recipe;
+export async function buildStatic(registry: IndexedData): Promise<CraftingFunc> {
+  // @ts-expect-error
+  const Recipe = (await import("prismarine-recipe")).default(registry).Recipe;
   return _build(Recipe)
 }
