@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  PrepareSupportedVersions:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 22.x
+      - name: Install Dependencies
+        run: npm install
+      - id: set-matrix
+        run: |
+          echo "Retrieving tested versions from mineflayer..."
+          MATRIX=$(node -e "
+            const { testedVersions } = require('mineflayer/lib/version');
+            console.log('matrix=' + JSON.stringify({ include: testedVersions.map(mcVersion => ({ mcVersion })) }));
+          ")
+          echo "$MATRIX" >> $GITHUB_OUTPUT
+
+  RunMinecraftScript:
+    needs: PrepareSupportedVersions
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.PrepareSupportedVersions.outputs.matrix) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 22.x
+      - name: Install Dependencies
+        run: npm install
+      - name: Run Node.js Script with Minecraft Version
+        run: node tests/ci.js ${{ matrix.mcVersion }}
