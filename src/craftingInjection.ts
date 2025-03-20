@@ -188,10 +188,9 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
       }
     } else {
       // TODO : should be replaced by smelting recipe data
-
-      const found = recipes.find((r) => r.result.count > 1);
+      const found = recipes.find((r) => r.result.count >= 1);
       recipeWanted = found ?? recipes[0];
-
+      
       if (recipes.length == 0 || gettableItems.includes(id)) {
         return { success: true, itemsRequired: [item], recipesToDo: [] };
       }
