@@ -1,9 +1,9 @@
 const mineflayer = require("mineflayer")
 
-const crafter = require("mineflayer-crafting-util").plugin
+const crafter = require("../lib").plugin
 
 const bot = mineflayer.createBot({
-    host: "localhost", // optional
+    host: process.argv[2], // optional
     port: 25565,       // optional
     username: "bot"
 })
@@ -142,11 +142,14 @@ bot.once("spawn", () => {
                     }
 
                 }
+                let idx = 0;
                 console.log(plan2.itemsRequired.map(stringifyItem).join(", "))
+                console.log(plan2.recipesToDo)
                 for (const info of plan2.recipesToDo) {
-                    console.log(info.recipe.delta.map(stringifyItem).join(", "))
+                    console.log(idx, info.recipe.delta.map(stringifyItem).join(", "))
                     await bot.chat(`Crafting ${bot.registry.items[info.recipe.result.id].name} x ${info.recipe.result.count}`)
                     await bot.craft(info.recipe, info.recipeApplications, craftingTable)
+                    idx++;
                     await bot.waitForTicks(10)
                 }
 

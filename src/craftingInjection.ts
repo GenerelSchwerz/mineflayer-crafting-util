@@ -17,7 +17,7 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
     target = item.count
   ): { success: boolean; itemsRequired: Item[]; recipesToDo: Array<{ recipeApplications: number; recipe: PRecipe }> } {
     const id = item.id;
-    const recipes = Recipe.find(id, null);
+    let recipes = Recipe.find(id, null);
 
     const availableItems = opts.availableItems;
     const includeRecursion = opts.includeRecursion ?? false;
@@ -33,6 +33,10 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
       recipeApplications: number;
       recipe: PRecipe;
     }> = [];
+
+    // disregard recipes that combine the item itself back together, as that is pointless for our usecase.
+    recipes = recipes.filter((r) => r.delta.slice(0, -1).some((e) => e.id !== id));
+
 
     if (availableItems !== undefined) {
       matchingItem = availableItems.find((e) => e.id === id && e.count >= target);
@@ -53,13 +57,18 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
         return { success: false, itemsRequired: [item], recipesToDo: [] };
       }
 
-      seen.set(id, item);
+      seen.set(id, item); 
 
-      recipeWanted = recipes.find((r) =>
-        r.delta.slice(0, -1).every((e) => (availableItems.find((i) => i.id === e.id)?.count ?? 0) >= -e.count)
+      recipeWanted = recipes.find((r) => {
+        if (r.ingredients != null) return r.ingredients.every(e=>(availableItems.find(i=>i.id === e.id)?.count ?? 0) >= -e.count)
+        else return r.delta.slice(0, -1).every((e) => (availableItems.find((i) => i.id === e.id)?.count ?? 0) >= -e.count)
+      }
+       
       );
 
+
       if (recipeWanted != null) {
+      
       } else {
         // since no recipes exist with all items available, search for the recipe with the most amount of items available inline
         
@@ -141,10 +150,10 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
             for (const toDo of test.recipesToDo) {
               for (const ing of toDo.recipe.delta) {
                 const index = currentItems.findIndex((e) => e.id === ing.id);
-                const num = (currentItems[index]?.count ?? 0) + ing.count * toDo.recipeApplications;
-                if (num < 0) { // this should never happen, but just in case.
-                  return { success: false, itemsRequired: [item], recipesToDo: [] };
-                }
+                // const num = (currentItems[index]?.count ?? 0) + ing.count * toDo.recipeApplications;
+                // if (num < 0) { // this should never happen, but just in case.
+                //   return { success: false, itemsRequired: [item], recipesToDo: [] };
+                // }
                 if (index !== -1) {
                   currentItems[index].count += ing.count * toDo.recipeApplications;
                 } else {
@@ -188,7 +197,7 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
       }
     } else {
       // TODO : should be replaced by smelting recipe data
-      const found = recipes.find((r) => r.result.count >= 1);
+      const found = recipes.find((r) => r.result.count > 1);
       recipeWanted = found ?? recipes[0];
       
       if (recipes.length == 0 || gettableItems.includes(id)) {
@@ -256,6 +265,8 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
 
 
     const ret = _newCraft(item, opts, seen);
+
+    console.log('internal', ret)
 
     const availableItems = opts.availableItems;
 

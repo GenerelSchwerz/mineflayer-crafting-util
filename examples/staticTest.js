@@ -1,4 +1,4 @@
-const mcVersion = "1.21.4"
+const mcVersion = "1.8.9"
 
 function stringifyItem(registry, item) {
   const mdItem = registry.items[item.id]
@@ -32,7 +32,8 @@ async function main(mcVersion) {
   const wantedAmount = parseInt(process.argv[3]) || 1
 
   const sticks = {id: mcData.itemsByName[wantedItemName].id, count: wantedAmount}
-  const plan = crafter(sticks)
+  const plan = crafter(sticks, {availableItems: [{id: mcData.itemsByName.log.id, count: 2}],multipleRecipes: true})
+  // const plan = crafter(sticks)
 
   console.log(beautifyPlan(mcData, plan))
 }
