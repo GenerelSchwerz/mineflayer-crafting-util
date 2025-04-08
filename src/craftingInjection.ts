@@ -4,11 +4,18 @@ import type { CraftOptions, Item } from "./types";
 import type { CraftingPlan } from "./types";
 import type {IndexedData} from 'minecraft-data'
 
+
 const gettableItems = [263, 264, 265, 266, 296, 331, 341, 388]; // TODO : should be replaced by smelting recipe data
 
 type CraftingFunc = (item: Item, opts?: CraftOptions) => CraftingPlan
 
-export function _build(Recipe: typeof PRecipe): CraftingFunc {
+export function deepClone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
+}
+
+export function _build(registry: IndexedData): CraftingFunc {
+  // @ts-ignore
+  const Recipe: typeof PRecipe = (require("prismarine-recipe"))(registry).Recipe;
 
   function _newCraft(
     item: Item,
@@ -16,6 +23,8 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
     seen = new Map(),
     target = item.count
   ): { success: boolean; itemsRequired: Item[]; recipesToDo: Array<{ recipeApplications: number; recipe: PRecipe }> } {
+    console.log('attempt craft for item', registry.items[item.id].name, item.count)
+    console.log(opts.availableItems?.map(i=>{return {name: registry.items[i.id].name, count: i.count}}) )
     const id = item.id;
     let recipes = Recipe.find(id, null);
 
@@ -39,9 +48,10 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
 
 
     if (availableItems !== undefined) {
-      matchingItem = availableItems.find((e) => e.id === id && e.count >= target);
+      matchingItem = availableItems.find((e) => e.id === id);
       if (matchingItem != null) {
         if (matchingItem.count >= target) {
+          console.log('already have item', registry.items[id].name, matchingItem.count)
           return { success: true, itemsRequired: [], recipesToDo: [] }; // already have item, no need to craft it.
         } else {
           count -= matchingItem.count;
@@ -49,7 +59,10 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
       }
 
       if (recipes.length == 0 || gettableItems.includes(id)) {
-        return { success: true, itemsRequired: [item], recipesToDo: [] };
+        if (matchingItem != null) {
+          item.count -= matchingItem.count;
+        }
+        return { success: (matchingItem?.count ?? 0) > 0, itemsRequired: [item], recipesToDo: [] };
       }
 
 
@@ -93,27 +106,37 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
           if (deltas[i] !== mostAmt) continue;
 
           // we are going to recurse downwards, so we need to remove items from availableItems as we use them.
-          const currentItems = opts.availableItems!;
+          const newOpts = opts;
+          console.log('new opts', newOpts)
+          const currentItems = newOpts.availableItems!;
           const recipe = recipes1[i];
           const ingredien = recipe.delta.slice(0, -1);
 
           // all items that need to be crafted to craft this recipe
           let ingredients = ingredien.filter((i) => availableItems.find((e) => e.id === i.id && e.count >= -i.count) === undefined);
+          // sort by amount
+          ingredients.sort((a, b) => a.count - b.count);
 
           // store all results for crafting attempts on all ingredients of current recipe
           const results: Array<ReturnType<typeof _newCraft>> = [];
 
+         
           const found = ingredients.find((e) => e.id === id);
+          console.log('ingredients: ', ingredients.map(i=>{return {name: registry.items[i.id].name, count: i}}), found)
           if (found != null) ingredients = [found];
 
           // do craft on all ingredients of current recipe
           inner: for (const ing of ingredients) {
-            const data = _newCraft({ id: ing.id, count: -ing.count }, opts, seen);
-            if (!data.success) continue inner;
+            const data = _newCraft({ id: ing.id, count: -ing.count }, newOpts, seen);
+            if (!data.success) {
+              console.log('no good')
+              continue inner;
+            }
             results.push(data);
-
+            console.log(newOpts.availableItems!.map(i=>{return {name: registry.items[i.id].name, count: i.count}}) )
+            console.log('pushing to RET1 for item:', registry.items[ing.id].name, -ing.count, data.recipesToDo.map(r => r.recipe.delta.map(i=>{return {name: registry.items[i.id].name, count: i.count}})))
             ret1.push(...data.recipesToDo);
-
+  
             for (const item1 of data.recipesToDo) {
               for (let j = 0; j < item1.recipe.delta.length; j++) {
                 const item = item1.recipe.delta[j];
@@ -127,14 +150,18 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
             }
           }
 
+          
+    
           // if we successfully crafted all ingredients, we can craft this recipe
           if (results.length === ingredients.length) {
+ 
+            console.log(opts)
 
             // with our available items properly managed now, we can do the standard crafting option.
             let test;
             let attemptCount = count - craftedCount;
             tester: for (; attemptCount > 0; attemptCount--) {
-              const newopts = opts;
+              const newopts = newOpts;
               const test1 = _newCraft({ id, count: attemptCount }, newopts, seen, target);
               if (test1.success) {
                 test = test1;
@@ -143,9 +170,18 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
               }
             }
 
+            console.log('test', test)
             if (test === undefined) continue outer;
-
-            ret1.push(...test.recipesToDo);
+            // console.log(test.recipesToDo.map((r) => [r.recipe.result.id, JSON.stringify(r.recipe.delta.map((i) => [i.id, i.count]))]));
+            
+            // temporary fix.
+            // if (registry.version[">="]("1.21")) {
+            //   ret1.push(test.recipesToDo[test.recipesToDo.length-1])
+            // } else {
+              console.log(newOpts.availableItems!.map(i=>{return {name: registry.items[i.id].name, count: i.count}}))
+              console.log('pushing to RET1 for item:', registry.items[id].name, test.recipesToDo.map(r => r.recipe.delta.map(i=>{return {name: registry.items[i.id].name, count: i.count}})))
+              ret1.push(...test.recipesToDo);           
+            // }
 
             for (const toDo of test.recipesToDo) {
               for (const ing of toDo.recipe.delta) {
@@ -162,10 +198,15 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
               }
             }
 
+            console.log('crafted count', craftedCount, count)
             if (craftedCount !== count) {
               continue outer;
             }
 
+            console.log('we did it?', registry.items[id].name)
+            console.log(newOpts.availableItems!.map(i=>{return {name: registry.items[i.id].name, count: i.count}}))
+            console.log('ret1 map', ret1.map(r=>[r.recipeApplications, r.recipe.delta.map(i=>{return {name: registry.items[i.id].name, count: i.count}})]))
+            seen.set(id, item);
             return {
               success: true,
               itemsRequired: ret0,
@@ -266,7 +307,6 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
 
     const ret = _newCraft(item, opts, seen);
 
-    console.log('internal', ret)
 
     const availableItems = opts.availableItems;
 
@@ -276,6 +316,7 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
       ret1.requiresCraftingTable = ret.recipesToDo.some((r) => r.recipe.requiresTable);
       return ret1;
     }
+
 
     ret.itemsRequired = [];
 
@@ -300,7 +341,7 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
           const consumerIdx = ret.recipesToDo.indexOf(res1);
           ret.recipesToDo.splice(consumerIdx, 1);
           if (ret.recipesToDo.length <= 1) break hey;
-          const producerIdx = ret.recipesToDo.indexOf(found);
+          const producerIdx = ret.recipesToDo.indexOf(found!);
           ret.recipesToDo.splice(producerIdx, 1);
           change++;
         }
@@ -390,9 +431,7 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
 
 
 export async function injectBot(bot: Bot, botoptions: BotOptions): Promise<void> {
-  // @ts-expect-error
-  const Recipe = (await import("prismarine-recipe")).default(bot.registry).Recipe; 
-  const newCraft = _build(Recipe)
+  const newCraft = _build(bot.registry)
 
   bot.planCraft = newCraft;
 
@@ -413,7 +452,5 @@ export async function injectBot(bot: Bot, botoptions: BotOptions): Promise<void>
 }
 
 export async function buildStatic(registry: IndexedData): Promise<CraftingFunc> {
-  // @ts-expect-error
-  const Recipe = (await import("prismarine-recipe")).default(registry).Recipe;
-  return _build(Recipe)
+  return _build(registry)
 }
