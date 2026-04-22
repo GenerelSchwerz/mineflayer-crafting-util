@@ -119,3 +119,9 @@ bot.planCraftInventory(wantedItem: Item): CraftingPlan
 | Returns | Type | Description |
 | --- | --- | --- |
 | CraftingPlan | <code><a href="#craftingplan">CraftingPlan</a></code> | The crafting plan |
+
+## Development
+
+Static planner smoke tests are documented in
+[docs/static-plan-smoke-tests.md](docs/static-plan-smoke-tests.md). Use them
+before running the full suite when changing recursive crafting behavior.

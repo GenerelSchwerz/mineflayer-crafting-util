@@ -8,8 +8,11 @@
     "build": "npx tsc",
     "pretest": "npm run build",
     "test": "node ./node_modules/mocha/bin/mocha.js \"tests/**/*.test.js\"",
+    "smoke:static": "node ./scripts/staticPlanSmoke.js",
+    "smoke:matrix": "node ./scripts/staticPlanMatrix.js",
     "clean": "rm -rf lib",
-    "fix-lint": "ts-standard --fix",
+    "lint": "ts-standard \"src/**/*.ts\"",
+    "fix-lint": "ts-standard \"src/**/*.ts\" --fix",
     "prepare": "npm run build"
   },
   "repository": {
