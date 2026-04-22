@@ -8,6 +8,7 @@ const DEFAULT_CASES = [
   { version: '1.18.2', wantedItem: 'wooden_pickaxe', woodItem: 'oak_log' },
   { version: '1.21.4', wantedItem: 'wooden_pickaxe', woodItem: 'oak_log' },
   { version: '1.21.4', wantedItem: 'wooden_pickaxe', woodItem: 'pale_oak_log' },
+  { version: '1.21.4', wantedItem: 'wooden_sword', wantedCount: 2, available: 'pale_oak_planks:2,stick:2,oak_log:2', expectedSuccess: true },
   { version: '1.21.4', wantedItem: 'stone_pickaxe', available: 'cobblestone:3,oak_log:1' },
   { version: '1.21.4', wantedItem: 'iron_pickaxe', wantedCount: 9, available: 'iron_block:3,oak_log:2', expectedSuccess: false },
   { version: '1.21.4', wantedItem: 'iron_pickaxe', wantedCount: 9, available: 'iron_block:3,oak_log:3', expectedSuccess: true },

@@ -201,6 +201,53 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     })
   })
 
+  it('crafts repeated wooden swords across different wood recipes', function () {
+    const wantedItem = mcDataInstance.itemsByName.wooden_sword
+
+    expect(wantedItem, 'Could not find wooden_sword').to.exist
+    expect(mcDataInstance.itemsByName.pale_oak_planks, 'Could not find pale_oak_planks').to.exist
+    expect(mcDataInstance.itemsByName.oak_log, 'Could not find oak_log').to.exist
+
+    const plan = crafter(
+      { id: wantedItem.id, count: 2 },
+      {
+        availableItems: buildAvailableItems(mcDataInstance, [
+          ['pale_oak_planks', 2],
+          ['stick', 2],
+          ['oak_log', 2]
+        ]),
+        multipleRecipes: true
+      }
+    )
+    const extracted = extractPlanDetails(mcDataInstance, plan)
+
+    expect(plan.success).to.equal(true)
+    expect(plan.itemsRequired.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.requiresCraftingTable).to.equal(true)
+
+    expectPlanStep(extracted.plans, {
+      ingredients: [
+        { count: -2, nameIncludes: 'pale_oak_planks' },
+        { count: -1, nameIncludes: 'stick' }
+      ],
+      result: { count: 1, nameIncludes: 'wooden_sword' },
+      applications: 1
+    })
+    expectPlanStep(extracted.plans, {
+      ingredients: [{ count: -1, nameIncludes: 'oak_log' }],
+      result: { count: 4, nameIncludes: 'oak_planks' },
+      applications: 1
+    })
+    expectPlanStep(extracted.plans, {
+      ingredients: [
+        { count: -2, nameIncludes: 'oak_planks' },
+        { count: -1, nameIncludes: 'stick' }
+      ],
+      result: { count: 1, nameIncludes: 'wooden_sword' },
+      applications: 1
+    })
+  })
+
   it('fails when available items cannot produce enough repeated intermediates', function () {
     const wantedItem = mcDataInstance.itemsByName.iron_pickaxe
 

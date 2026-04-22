@@ -26,7 +26,7 @@ function beautifyPlan(registry, plan) {
       }
     })
     .join("\n\t");
-  return `Items required:\n\t${itemsRequired}\nPlans:\n\t${plans}`;
+  return `Items required:\n\t${itemsRequired}\nSuccess: ${plan.success}\nPlans:\n\t${plans}`;
   // return itemsRequired
 }
 
@@ -35,7 +35,7 @@ async function main(mcVersion) {
   const crafter = await require("../lib").buildStatic(mcData); // buildStatic is async
 
   const wantedItemName = process.argv[2] || "wooden_sword";
-  const wantedAmount = parseInt(process.argv[3]) || 5;
+  const wantedAmount = parseInt(process.argv[3]) || 3;
   const woodName = mcData.itemsByName.oak_log != null ? "oak_log" : "log";
 
   const wantedItem = { id: mcData.itemsByName[wantedItemName].id, count: wantedAmount };
@@ -45,7 +45,11 @@ async function main(mcVersion) {
   };
 
   if (process.argv[2] == null) {
-    setup.availableItems = [{ id: mcData.itemsByName[woodName].id, count: wantedAmount * 2 }];
+    setup.availableItems = [
+      { id: mcData.itemsByName["pale_oak_planks"].id, count: 2},
+      { id: mcData.itemsByName["stick"].id, count: 2},
+      { id: mcData.itemsByName["oak_log"].id, count: 2},
+    ];
   } else {
     // setup.availableItems = [
     //   { id: mcData.itemsByName.cobblestone.id, count: 3 },

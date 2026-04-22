@@ -234,6 +234,29 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
             applyRecipeResults(currentItems, test.recipesToDo)
 
             if (craftedCount !== count) {
+              if (multipleRecipes && craftedCount > 0) {
+                const remainingSeen = new Map(candidateSeen)
+                remainingSeen.delete(id)
+                const remainingItems = cloneAvailableItems(currentItems).filter((item) => item.id !== id)
+                const data = _newCraft(
+                  { id, count: count - craftedCount },
+                  {
+                    ...opts,
+                    availableItems: remainingItems
+                  },
+                  remainingSeen,
+                  count - craftedCount
+                )
+
+                if (data.success) {
+                  return {
+                    success: true,
+                    itemsRequired: ret0.concat(data.itemsRequired),
+                    recipesToDo: candidateRecipes.concat(data.recipesToDo)
+                  }
+                }
+              }
+
               continue outer
             }
 

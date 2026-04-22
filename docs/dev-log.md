@@ -1,5 +1,45 @@
 # Development Log
 
+## 2026-04-22: mixed wood recipes for repeated sword crafts
+
+### Symptom
+
+With this inventory:
+
+```txt
+pale_oak_planks x 2
+stick x 2
+oak_log x 2
+```
+
+planning `wooden_sword x 2` with `multipleRecipes: true` returned
+`success=false`.
+
+The inventory is sufficient. One sword can use the existing pale oak planks and
+one stick. The second sword can use oak planks crafted from an oak log and the
+remaining stick.
+
+### Root cause
+
+The available-items planner chose the highest-scoring recipe family first. In
+this case the pale-oak sword recipe scored highest because both pale planks and
+sticks were already present.
+
+That candidate could craft one sword, but not both. The planner treated the
+partial candidate as a failure and discarded it instead of consuming the
+successful pale-oak craft and continuing the remaining count through another
+wood recipe.
+
+### Fix
+
+When `multipleRecipes` is enabled and a candidate recipe can satisfy only part
+of the requested output count, the planner now keeps the partial plan, applies
+it to the candidate inventory, removes the already-crafted target output from
+the inventory used for the remainder, and recursively plans the remaining count.
+
+The regression suite and smoke matrix now cover `wooden_sword x 2` from
+`pale_oak_planks:2,stick:2,oak_log:2`.
+
 ## 2026-04-22: repeated iron pickaxes overconsume craftable intermediates
 
 ### Symptom
