@@ -224,9 +224,15 @@ Mocha result:
 4 passing
 ```
 
-`ts-standard` was also checked. It currently fails on broad existing style
-issues across scripts, tests, and source, so it was not used as a gating signal
-for this behavioral fix.
+`ts-standard` now has scoped package scripts:
+
+```sh
+npm run lint
+npm run fix-lint
+```
+
+Both commands target `src/**/*.ts`. The CommonJS smoke scripts and Mocha tests
+are intentionally excluded from the TypeScript source lint target.
 
 ### Guardrails
 
