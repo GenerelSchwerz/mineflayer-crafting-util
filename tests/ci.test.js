@@ -2,78 +2,119 @@ const { expect } = require("chai");
 const mcData = require("minecraft-data");
 const craftingUtil = require("mineflayer-crafting-util");
 
+const { extractPlanDetails, getItemByPreferredNames } = require("./helpers");
+
 const mcVersion = process.env.MC_VERSION || "1.21.4";
 
-function stringifyItem(registry, item) {
-  const mdItem = registry.items[item.id];
-  return { name: mdItem.name, count: item.count };
-}
-
-function extractPlanDetails(registry, plan) {
-  return {
-    itemsRequired: plan.itemsRequired
-      .filter(i => i.count > 0)
-      .map(i => stringifyItem(registry, i)),
-    plans: plan.recipesToDo.map(({ recipeApplications, recipe }) => {
-      const result = stringifyItem(registry, recipe.result);
-      const ingredients =
-        recipe.ingredients != null
-          ? recipe.ingredients.map(i => stringifyItem(registry, i))
-          : recipe.delta.filter(i => i.count < 0).map(i => stringifyItem(registry, i));
-
-      return { ingredients, result, applications: recipeApplications };
-    }),
-  };
+function findStepByShape(steps, expected) {
+  return steps.some((step) => {
+    return (
+      step.applications === expected.applications &&
+      step.result.count === expected.result.count &&
+      step.result.name.includes(expected.result.nameIncludes) &&
+      expected.ingredients.every((expectedIng) =>
+        step.ingredients.some(
+          (actualIng) =>
+            actualIng.count === expectedIng.count && actualIng.name.includes(expectedIng.nameIncludes)
+        )
+      )
+    );
+  });
 }
 
 describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
-  this.timeout(5000); // Ensure enough time for async operations
+  this.timeout(5000);
 
-  let crafter, mcDataInstance;
+  let crafter;
+  let mcDataInstance;
 
   before(async function () {
     mcDataInstance = mcData(mcVersion);
     crafter = await craftingUtil.buildStatic(mcDataInstance);
   });
 
-  it("should generate the correct crafting plan for a wooden pickaxe", function () {
-    const wantedItem = mcDataInstance.itemsByName["wooden_pickaxe"];
-    const wantedAmount = 1;
-
-    const request = { id: wantedItem.id, count: wantedAmount };
-    const plan = crafter(request);
-    const extracted = extractPlanDetails(mcDataInstance, plan);
-
-    // Validate that at least one required item contains "log"
-    const hasValidLog = extracted.itemsRequired.some(
-      item => item.name.includes("log") && item.count === 2
+  it("replicates the staticTest example for the current version", function () {
+    const wantedItem = mcDataInstance.itemsByName.wooden_pickaxe;
+    const woodItem = getItemByPreferredNames(
+      mcDataInstance,
+      ["oak_log", "log"],
+      "log"
     );
-    expect(hasValidLog, "Missing valid log entry").to.be.true;
 
-    // Expected recipe steps with flexible name checking
-    const expectedSteps = [
-      { ingredients: [{ count: -1, nameIncludes: "log" }], result: { count: 4, nameIncludes: "planks" }, applications: 1 },
-      { ingredients: [{ count: -1, nameIncludes: "log" }], result: { count: 4, nameIncludes: "planks" }, applications: 1 },
-      { ingredients: [{ count: -2, nameIncludes: "planks" }], result: { count: 4, nameIncludes: "stick" }, applications: 1 },
-      { ingredients: [{ count: -3, nameIncludes: "planks" }, { count: -2, nameIncludes: "stick" }], result: { count: 1, nameIncludes: "wooden_pickaxe" }, applications: 1 },
-    ];
+    const plan = crafter(
+      { id: wantedItem.id, count: 1 },
+      {
+        availableItems: [{ id: woodItem.id, count: 2 }],
+        multipleRecipes: true,
+      }
+    );
 
-    // Validate each step in the plan
-    expectedSteps.forEach(expected => {
-      const matches = extracted.plans.some(planStep => {
-        return (
-          planStep.applications === expected.applications &&
-          planStep.result.count === expected.result.count &&
-          planStep.result.name.includes(expected.result.nameIncludes) &&
-          expected.ingredients.every(expectedIng =>
-            planStep.ingredients.some(
-              actualIng => actualIng.count === expectedIng.count && actualIng.name.includes(expectedIng.nameIncludes)
-            )
-          )
-        );
-      });
+    const extracted = extractPlanDetails(mcDataInstance, plan);
+    const usesModernWoodNames = mcDataInstance.isNewerOrEqualTo("1.21.4");
 
-      expect(matches, `Missing expected crafting step: ${JSON.stringify(expected)}`).to.be.true;
+    expect(plan.success).to.equal(true);
+    expect(plan.itemsRequired).to.deep.equal([]);
+    expect(plan.requiresCraftingTable).to.equal(true);
+
+    const expectedSteps = usesModernWoodNames
+      ? [
+          {
+            ingredients: [{ count: -1, nameIncludes: "log" }],
+            result: { count: 4, nameIncludes: "plank" },
+            applications: 1,
+          },
+          {
+            ingredients: [{ count: -2, nameIncludes: "plank" }],
+            result: { count: 4, nameIncludes: "stick" },
+            applications: 1,
+          },
+          {
+            ingredients: [{ count: -1, nameIncludes: "log" }],
+            result: { count: 4, nameIncludes: "plank" },
+            applications: 1,
+          },
+          {
+            ingredients: [
+              { count: -3, nameIncludes: "plank" },
+              { count: -2, nameIncludes: "stick" },
+            ],
+            result: { count: 1, nameIncludes: "wooden_pickaxe" },
+            applications: 1,
+          },
+        ]
+      : [
+          {
+            ingredients: [{ count: -1, nameIncludes: "log" }],
+            result: { count: 4, nameIncludes: "plank" },
+            applications: 1,
+          },
+          {
+            ingredients: [{ count: -2, nameIncludes: "plank" }],
+            result: { count: 4, nameIncludes: "stick" },
+            applications: 1,
+          },
+          {
+            ingredients: [{ count: -1, nameIncludes: "log" }],
+            result: { count: 4, nameIncludes: "plank" },
+            applications: 1,
+          },
+          {
+            ingredients: [
+              { count: -3, nameIncludes: "plank" },
+              { count: -2, nameIncludes: "stick" },
+            ],
+            result: { count: 1, nameIncludes: "wooden_pickaxe" },
+            applications: 1,
+          },
+        ];
+
+    expect(extracted.plans).to.have.lengthOf(expectedSteps.length);
+
+    expectedSteps.forEach((expected) => {
+      expect(
+        findStepByShape(extracted.plans, expected),
+        `Missing expected crafting step: ${JSON.stringify(expected)}`
+      ).to.equal(true);
     });
   });
 });

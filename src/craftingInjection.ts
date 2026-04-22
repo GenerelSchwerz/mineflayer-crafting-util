@@ -266,8 +266,6 @@ export function _build(Recipe: typeof PRecipe): CraftingFunc {
 
     const ret = _newCraft(item, opts, seen);
 
-    console.log('internal', ret)
-
     const availableItems = opts.availableItems;
 
     const ret1 = ret as CraftingPlan;

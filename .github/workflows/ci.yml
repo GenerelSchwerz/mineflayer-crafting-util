@@ -47,4 +47,4 @@ jobs:
       - name: Set MC_VERSION Environment Variable
         run: echo "MC_VERSION=${{ matrix.mcVersion }}" >> $GITHUB_ENV
       - name: Run Node.js Script with Minecraft Version
-        run: npx mocha tests/ci.test.js
+        run: npm test
