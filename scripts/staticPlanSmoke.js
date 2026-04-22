@@ -7,6 +7,7 @@ function parseArgs (argv) {
   const args = {
     version: process.env.MC_VERSION || '1.21.4',
     wantedItem: 'wooden_pickaxe',
+    wantedCount: Number(process.env.WANTED_COUNT || 1),
     woodItem: process.env.WOOD_ITEM || null,
     available: process.env.AVAILABLE_ITEMS || null,
     timeoutMs: DEFAULT_TIMEOUT_MS
@@ -16,6 +17,7 @@ function parseArgs (argv) {
     const arg = argv[i]
     if (arg === '--version') args.version = argv[++i]
     else if (arg === '--wanted-item') args.wantedItem = argv[++i]
+    else if (arg === '--wanted-count') args.wantedCount = Number(argv[++i])
     else if (arg === '--wood-item') args.woodItem = argv[++i]
     else if (arg === '--available') args.available = argv[++i]
     else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++i])
@@ -50,8 +52,12 @@ async function runChild () {
 
   const crafter = await buildStatic(mcData)
   const wanted = mcData.itemsByName[process.env.WANTED_ITEM]
+  const wantedCount = Number(process.env.WANTED_COUNT || 1)
   if (wanted == null) {
     throw new Error(`Unknown wanted item: ${process.env.WANTED_ITEM}`)
+  }
+  if (!Number.isInteger(wantedCount) || wantedCount <= 0) {
+    throw new Error(`Invalid wanted count: ${process.env.WANTED_COUNT}`)
   }
 
   const availableItems = parseAvailableItems(mcData, process.env.AVAILABLE_ITEMS)
@@ -68,7 +74,7 @@ async function runChild () {
   }
 
   const plan = crafter(
-    { id: wanted.id, count: 1 },
+    { id: wanted.id, count: wantedCount },
     {
       availableItems: finalAvailableItems,
       multipleRecipes: true
@@ -78,6 +84,7 @@ async function runChild () {
   const summary = {
     version: process.env.MC_VERSION,
     wantedItem: process.env.WANTED_ITEM,
+    wantedCount,
     woodItem: woodItemName,
     availableItems: finalAvailableItems.map((item) => ({
       name: mcData.items[item.id].name,
@@ -104,6 +111,7 @@ async function runParent () {
     PLAN_SMOKE_CHILD: '1',
     MC_VERSION: args.version,
     WANTED_ITEM: args.wantedItem,
+    WANTED_COUNT: String(args.wantedCount),
     WOOD_ITEM: args.woodItem || '',
     AVAILABLE_ITEMS: args.available || ''
   }

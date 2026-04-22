@@ -1,6 +1,6 @@
 import type { Bot, BotOptions } from 'mineflayer'
 import { _build } from './craft-injection'
-import { setupActualCrafting } from './actual-crafting'
+import { setupActualCrafting, type CraftPlanOptions } from './actual-crafting'
 import type { Item, CraftOptions, CraftingPlan } from './types'
 
 type CraftingTable = NonNullable<Parameters<Bot['craft']>[2]>
@@ -9,8 +9,8 @@ declare module 'mineflayer' {
   interface Bot {
     planCraft: (wantedItem: Item, options?: CraftOptions) => CraftingPlan
     planCraftInventory: (wantedItem: Item) => CraftingPlan
-    craftPlan: (plan: CraftingPlan, craftingTable: CraftingTable) => Promise<CraftingPlan>
-    craftItem: (itemId: number, count: number, craftingTable: CraftingTable, options?: CraftOptions) => Promise<CraftingPlan>
+    craftPlan: (plan: CraftingPlan, craftingTable: CraftingTable, options?: CraftPlanOptions) => Promise<CraftingPlan>
+    craftItem: (itemId: number, count: number, craftingTable: CraftingTable, options?: CraftOptions, craftOptions?: CraftPlanOptions) => Promise<CraftingPlan>
   }
 }
 

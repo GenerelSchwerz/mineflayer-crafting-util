@@ -1,5 +1,91 @@
 # Development Log
 
+## 2026-04-22: repeated iron pickaxes overconsume craftable intermediates
+
+### Symptom
+
+With this inventory:
+
+```txt
+iron_block x 3
+oak_log x 2
+```
+
+planning `iron_pickaxe x 9` returned `success=true`, even though it is
+impossible. The iron is sufficient because three iron blocks make twenty-seven
+ingots, but two oak logs can make at most sixteen sticks. Nine iron pickaxes
+require eighteen sticks.
+
+The bad plan consumed three logs internally:
+
+```txt
+oak_log x -1 => oak_planks x 4  (x1)
+oak_log x -1 => oak_planks x 4  (x2)
+```
+
+even though only two logs were available.
+
+### Reproduction
+
+```sh
+npm run build
+node scripts/staticPlanSmoke.js --version 1.21.4 --wanted-item iron_pickaxe --wanted-count 9 --available iron_block:3,oak_log:2 --timeout-ms 4000
+```
+
+### Root cause
+
+The available-items direct recipe check only verified that inventory could run a
+recipe once. It did not multiply input requirements by the number of recipe
+applications needed for the requested output count.
+
+That allowed a request like `oak_planks x 6` to consider one available log
+sufficient, because one plank recipe only needs one log. The planner then
+scheduled two plank recipe applications, which would actually consume two logs.
+
+### Fix
+
+Recipe craftability now uses a shared `canCraftRecipe` helper that multiplies
+each input requirement by `recipeApplications`. The direct available-items
+recipe selection and the parent candidate inventory check both use this helper.
+
+The smoke matrix now includes the impossible `iron_pickaxe x 9` case and fails
+if it ever reports `success=true`.
+
+### Follow-up: sufficient logs still failed
+
+After adding the impossible case, the neighboring valid case also failed:
+
+```txt
+iron_block x 3
+oak_log x 3
+```
+
+This inventory can produce twenty-seven iron ingots and twenty-four sticks, so
+`iron_pickaxe x 9` should succeed. The smaller isolated repro was:
+
+```txt
+availableItems:
+  oak_log x 2
+  oak_planks x 2
+wanted:
+  stick x 14
+```
+
+That should craft two more log-to-planks applications, then four stick
+applications.
+
+Root cause: when the planner already had enough inputs for one application of a
+candidate recipe, `ingredients.length` was zero and the candidate branch skipped
+the later full-application deficit check. That meant it never tried to scale the
+recipe from "can craft once" to "can craft enough times for the requested
+count".
+
+Fix: remove that early skip and always run the candidate recipe through the
+application-count check. While touching the same path, candidate inventory
+clones now drop zero-count entries so recursive availability checks only see
+positive inventory. The matrix now covers both sides of the boundary:
+`iron_block:3,oak_log:2` must fail, and `iron_block:3,oak_log:3` must succeed.
+
 ## 2026-04-22: `stone_pickaxe` fails with `3 cobblestone + 1 oak_log`
 
 ### Symptom

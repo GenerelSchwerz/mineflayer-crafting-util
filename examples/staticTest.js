@@ -34,9 +34,9 @@ async function main(mcVersion) {
   const mcData = require("minecraft-data")(mcVersion);
   const crafter = await require("../lib").buildStatic(mcData); // buildStatic is async
 
-  const wantedItemName = process.argv[2] || "wooden_pickaxe";
-  const wantedAmount = parseInt(process.argv[3]) || 1;
-  const woodName = mcData.itemsByName.oak_log != null ? "pale_oak_log" : "log";
+  const wantedItemName = process.argv[2] || "wooden_sword";
+  const wantedAmount = parseInt(process.argv[3]) || 5;
+  const woodName = mcData.itemsByName.oak_log != null ? "oak_log" : "log";
 
   const wantedItem = { id: mcData.itemsByName[wantedItemName].id, count: wantedAmount };
 
@@ -45,15 +45,16 @@ async function main(mcVersion) {
   };
 
   if (process.argv[2] == null) {
-    setup.availableItems = [{ id: mcData.itemsByName[woodName].id, count: 2 }];
+    setup.availableItems = [{ id: mcData.itemsByName[woodName].id, count: wantedAmount * 2 }];
   } else {
-    setup.availableItems = [
-      { id: mcData.itemsByName.cobblestone.id, count: 3 },
-      { id: mcData.itemsByName[woodName].id, count: 2 },
-      // { id: mcData.itemsByName["stick"].id, count: 2 },
-    ];
+    // setup.availableItems = [
+    //   { id: mcData.itemsByName.cobblestone.id, count: 3 },
+    //   { id: mcData.itemsByName[woodName].id, count: 2 },
+    //   // { id: mcData.itemsByName["stick"].id, count: 2 },
+    // ];
   }
 
+  console.log(setup)
   const plan = crafter(wantedItem, setup);
   // const plan = crafter(sticks)
 

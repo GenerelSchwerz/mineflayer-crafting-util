@@ -143,28 +143,19 @@ bot.once("spawn", () => {
         const amt = parseInt(args[1] ?? "1");
 
         const mdItem = bot.registry.itemsByName[name];
-        if (!mdItem) {
-          await bot.chat("Item not found");
-          return;
-        }
+        if (!mdItem) return await bot.chat("Item not found");
 
         const craftingTable = findCraftingTable(bot);
-        if (!craftingTable) {
-          bot.chat("No crafting table found");
-          return;
-        }
+        if (!craftingTable) return bot.chat("No crafting table found");
 
-        await bot.craftItem(mdItem.id, amt, craftingTable);
-        bot.chat(`finished crafting ${name}`);
+        const plan = await bot.craftItem(mdItem.id, amt, craftingTable, {}, { strict: true });
+        bot.chat(`finished crafting ${name} x ${amt}`);
 
+        console.log(bot.inventory.slots.filter(i=>!!i).map(i=>[i.name, i.count, i.stackSize]))
         const found = bot.inventory.findInventoryItem(mdItem.id);
-        if (found == null) {
-          bot.chat("didnt actually craft the item...");
-          return;
-        }
+        if (found == null) return bot.chat("didnt actually craft the item...");
 
         await bot.equip(found, "hand");
-
         break;
       }
 
@@ -177,9 +168,11 @@ bot.once("spawn", () => {
         console.log(plan.recipesToDo);
         for (const info of plan.recipesToDo) {
           console.log(idx, info.recipe.delta.map(stringifyItem).join(", "));
-          await bot.chat(`Crafting ${bot.registry.items[info.recipe.result.id].name} x ${info.recipe.result.count}`);
+          await bot.chat(`Crafting (${info.recipeApplications}x) ${bot.registry.items[info.recipe.result.id].name} x ${info.recipe.result.count}`);
           await bot.craft(info.recipe, info.recipeApplications, craftingTable);
           idx++;
+          
+          console.log(bot.inventory.items().map(i=>[i.name, i.count]))
           await bot.waitForTicks(10);
         }
 

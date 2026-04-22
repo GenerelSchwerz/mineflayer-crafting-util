@@ -9,6 +9,9 @@ const DEFAULT_CASES = [
   { version: '1.21.4', wantedItem: 'wooden_pickaxe', woodItem: 'oak_log' },
   { version: '1.21.4', wantedItem: 'wooden_pickaxe', woodItem: 'pale_oak_log' },
   { version: '1.21.4', wantedItem: 'stone_pickaxe', available: 'cobblestone:3,oak_log:1' },
+  { version: '1.21.4', wantedItem: 'iron_pickaxe', wantedCount: 9, available: 'iron_block:3,oak_log:2', expectedSuccess: false },
+  { version: '1.21.4', wantedItem: 'iron_pickaxe', wantedCount: 9, available: 'iron_block:3,oak_log:3', expectedSuccess: true },
+  { version: '1.21.4', wantedItem: 'stick', wantedCount: 14, available: 'oak_log:2,oak_planks:2', expectedSuccess: true },
   { version: '1.21.11', wantedItem: 'wooden_pickaxe', woodItem: 'oak_log' },
   { version: '1.21.11', wantedItem: 'wooden_pickaxe', woodItem: 'pale_oak_log' },
   { version: '1.21.11', wantedItem: 'wooden_pickaxe', woodItem: 'birch_log' }
@@ -23,6 +26,8 @@ function runCase (testCase, timeoutMs) {
       testCase.version,
       '--wanted-item',
       testCase.wantedItem,
+      '--wanted-count',
+      String(testCase.wantedCount ?? 1),
       '--timeout-ms',
       String(timeoutMs)
     ].concat(testCase.available != null
@@ -51,6 +56,7 @@ function runCase (testCase, timeoutMs) {
       stepCount: parsed.stepCount,
       requiresCraftingTable: parsed.requiresCraftingTable,
       success: parsed.success,
+      expectedSuccess: testCase.expectedSuccess,
       plan: parsed.plan
     }
   } catch (error) {
@@ -73,6 +79,13 @@ function main () {
 
     if (result.ok) {
       const label = result.available ?? result.woodItem
+      if (result.expectedSuccess != null && result.success !== result.expectedSuccess) {
+        failed = true
+        console.log(
+          `${result.version} ${result.wantedItem} ${label}: FAIL expected success=${result.expectedSuccess}, got ${result.success}`
+        )
+        continue
+      }
       console.log(
         `${result.version} ${result.wantedItem} ${label}: stepCount=${result.stepCount}, table=${result.requiresCraftingTable}, success=${result.success}`
       )

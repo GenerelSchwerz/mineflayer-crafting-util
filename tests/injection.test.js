@@ -15,6 +15,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
   let planksItem
   let stickItem
   let woodenPickaxeItem
+  let woodenSwordItem
 
   before(async function () {
     mcDataInstance = mcData(mcVersion)
@@ -22,6 +23,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
     planksItem = findItemByNamePattern(mcDataInstance, [/plank/i])
     stickItem = mcDataInstance.itemsByName.stick
     woodenPickaxeItem = mcDataInstance.itemsByName.wooden_pickaxe
+    woodenSwordItem = mcDataInstance.itemsByName.wooden_sword
   })
 
   it('adds planning and crafting helpers to a bot', async function () {
@@ -108,6 +110,66 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
     expect(calls[0].recipe).to.equal(plan.recipesToDo[0].recipe)
     expect(calls[0].count).to.equal(plan.recipesToDo[0].recipeApplications)
     expect(calls[0].craftingTable).to.equal(table)
+  })
+
+  it('crafts a plan in one call by default', async function () {
+    const table = { name: 'crafting_table' }
+    const calls = []
+    const bot = {
+      registry: mcDataInstance,
+      inventory: { slots: [] },
+      craft: async (recipe, count, craftingTable) => {
+        calls.push({ recipe, count, craftingTable })
+      }
+    }
+
+    await injectBot(bot, {})
+
+    const plan = staticCrafter({ id: woodenSwordItem.id, count: 3 })
+    const swordStep = plan.recipesToDo.find((info) => info.recipe.result.id === woodenSwordItem.id)
+    const swordPlan = {
+      success: true,
+      itemsRequired: [],
+      recipesToDo: [swordStep],
+      requiresCraftingTable: true
+    }
+
+    await bot.craftPlan(swordPlan, table)
+
+    expect(calls).to.have.lengthOf(1)
+    expect(calls[0].recipe).to.equal(swordStep.recipe)
+    expect(calls[0].count).to.equal(3)
+    expect(calls[0].craftingTable).to.equal(table)
+  })
+
+  it('splits craft calls by result stack size in strict mode', async function () {
+    const table = { name: 'crafting_table' }
+    const calls = []
+    const bot = {
+      registry: mcDataInstance,
+      inventory: { slots: [] },
+      craft: async (recipe, count, craftingTable) => {
+        calls.push({ recipe, count, craftingTable })
+      }
+    }
+
+    await injectBot(bot, {})
+
+    const plan = staticCrafter({ id: woodenSwordItem.id, count: 3 })
+    const swordStep = plan.recipesToDo.find((info) => info.recipe.result.id === woodenSwordItem.id)
+    const swordPlan = {
+      success: true,
+      itemsRequired: [],
+      recipesToDo: [swordStep],
+      requiresCraftingTable: true
+    }
+
+    await bot.craftPlan(swordPlan, table, { strict: true })
+
+    expect(calls).to.have.lengthOf(3)
+    expect(calls.map((call) => call.recipe)).to.deep.equal([swordStep.recipe, swordStep.recipe, swordStep.recipe])
+    expect(calls.map((call) => call.count)).to.deep.equal([1, 1, 1])
+    expect(calls.map((call) => call.craftingTable)).to.deep.equal([table, table, table])
   })
 
   it('crafts an item by id and count with an explicit crafting table', async function () {

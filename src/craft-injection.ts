@@ -13,6 +13,16 @@ function recipeInputs (recipe: PRecipe): Item[] {
   return recipe.delta.filter((item) => item.count < 0)
 }
 
+function canCraftRecipe (
+  availableItems: Item[],
+  recipe: PRecipe,
+  recipeApplications: number
+): boolean {
+  return recipeInputs(recipe).every((input) =>
+    (availableItems.find((item) => item.id === input.id)?.count ?? 0) >= -input.count * recipeApplications
+  )
+}
+
 function applyRecipeResults (
   items: Item[],
   recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>
@@ -27,6 +37,35 @@ function applyRecipeResults (
       }
     }
   }
+}
+
+function replaceItems (targetItems: Item[], sourceItems: Item[]): void {
+  targetItems.splice(0, targetItems.length, ...sourceItems.map((item) => ({ ...item })))
+}
+
+function addItem (items: Item[], item: Item): void {
+  const existing = items.find((existingItem) => existingItem.id === item.id)
+
+  if (existing != null) {
+    existing.count += item.count
+  } else {
+    items.push({ ...item })
+  }
+}
+
+function reserveItem (items: Item[], itemId: number, count: number): Item[] {
+  const reservedItems = items.map((item) => ({ ...item }))
+  const item = reservedItems.find((item) => item.id === itemId)
+
+  if (item != null) item.count -= count
+
+  return reservedItems.filter((item) => item.count > 0)
+}
+
+function cloneAvailableItems (items: Item[]): Item[] {
+  return items
+    .filter((item) => item.count > 0)
+    .map((item) => ({ ...item }))
 }
 
 export function _build (Recipe: typeof PRecipe): CraftingFunc {
@@ -77,9 +116,10 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
       seen.set(id, item)
 
-      recipeWanted = recipes.find((r) =>
-        recipeInputs(r).every((e) => (availableItems.find((i) => i.id === e.id)?.count ?? 0) >= -e.count)
-      )
+      recipeWanted = recipes.find((r) => {
+        const recipeApplications = Math.ceil(count / r.result.count)
+        return canCraftRecipe(availableItems, r, recipeApplications)
+      })
 
       if (recipeWanted == null) {
         // since no recipes exist with all items available, search for the recipe with the most amount of items available inline
@@ -104,7 +144,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
           if (scoredRecipe.score !== mostAmt) continue
 
           // Candidate planning mutates inventory counts, so isolate attempts until one fully succeeds.
-          const candidateItems = availableItems.map((item) => ({ ...item }))
+          const candidateItems = cloneAvailableItems(availableItems)
           const candidateOpts: CraftOptions = {
             ...opts,
             availableItems: candidateItems
@@ -136,49 +176,56 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
           // if we successfully crafted all ingredients, we can craft this recipe
           if (results.length === ingredients.length) {
-            if (ingredients.length === 0) continue outer
-
             // with our available items properly managed now, we can do the standard crafting option.
             let test: { recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }> } | undefined
             let attemptCount = count - craftedCount
             tester: for (; attemptCount > 0; attemptCount--) {
               const recipeApplications = Math.ceil(attemptCount / recipe.result.count)
-              const attemptItems = currentItems.map((item) => ({ ...item }))
+              const attemptItems = cloneAvailableItems(currentItems)
               const attemptRecipes = [...candidateRecipes]
               const attemptOpts: CraftOptions = {
                 ...candidateOpts,
                 availableItems: attemptItems
               }
+              const parentInputs = recipeInputs(recipe)
+              let pass = 0
 
-              for (const input of recipeInputs(recipe)) {
-                const required = -input.count * recipeApplications
-                const available = attemptItems.find((item) => item.id === input.id)?.count ?? 0
-                const deficit = required - available
+              while (!canCraftRecipe(attemptItems, recipe, recipeApplications)) {
+                let madeProgress = false
+                pass++
 
-                if (deficit <= 0) continue
+                if (pass > parentInputs.length * (recipeApplications + 2)) continue tester
 
-                const deficitOpts: CraftOptions = {
-                  ...attemptOpts,
-                  availableItems: attemptItems.filter((item) => item.id !== input.id).map((item) => ({ ...item }))
+                for (const input of parentInputs) {
+                  const required = -input.count * recipeApplications
+                  const available = attemptItems.find((item) => item.id === input.id)?.count ?? 0
+                  const deficit = required - available
+
+                  if (deficit <= 0) continue
+
+                  const deficitItems = reserveItem(attemptItems, input.id, available)
+                  const deficitOpts: CraftOptions = {
+                    ...attemptOpts,
+                    availableItems: deficitItems
+                  }
+                  const data = _newCraft({ id: input.id, count: deficit }, deficitOpts, new Map(candidateSeen))
+                  if (!data.success || data.recipesToDo.length === 0) continue tester
+
+                  attemptRecipes.push(...data.recipesToDo)
+                  replaceItems(attemptItems, deficitItems)
+                  if (available > 0) addItem(attemptItems, { id: input.id, count: available })
+                  applyRecipeResults(attemptItems, data.recipesToDo)
+                  madeProgress = true
                 }
-                const data = _newCraft({ id: input.id, count: deficit }, deficitOpts, new Map(candidateSeen))
-                if (!data.success) continue tester
 
-                attemptRecipes.push(...data.recipesToDo)
-                applyRecipeResults(attemptItems, data.recipesToDo)
+                if (!madeProgress) continue tester
               }
 
-              const canCraft = recipeInputs(recipe).every((input) =>
-                (attemptItems.find((item) => item.id === input.id)?.count ?? 0) >= -input.count * recipeApplications
-              )
-
-              if (canCraft) {
-                currentItems.splice(0, currentItems.length, ...attemptItems)
-                candidateRecipes.splice(0, candidateRecipes.length, ...attemptRecipes)
-                test = { recipesToDo: [{ recipeApplications, recipe }] }
-                craftedCount += attemptCount
-                break tester
-              }
+              replaceItems(currentItems, attemptItems)
+              candidateRecipes.splice(0, candidateRecipes.length, ...attemptRecipes)
+              test = { recipesToDo: [{ recipeApplications, recipe }] }
+              craftedCount += attemptCount
+              break tester
             }
 
             if (test === undefined) continue outer
