@@ -1,5 +1,4 @@
 /* eslint-disable no-labels */
-import type { Bot, BotOptions } from 'mineflayer'
 import type { Recipe as PRecipe } from 'prismarine-recipe'
 import type { CraftOptions, Item, CraftingPlan } from './types'
 
@@ -379,26 +378,6 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
   }
 
   return newCraft
-}
-
-export async function injectBot (bot: Bot, botoptions: BotOptions): Promise<void> {
-  // @ts-expect-error
-  const Recipe = (await import('prismarine-recipe')).default(bot.registry).Recipe
-  const newCraft = _build(Recipe)
-
-  bot.planCraft = newCraft
-
-  function craftWithInventory (wantedItem: Item): CraftingPlan {
-    const items = bot.inventory.slots.filter(i => !(i == null)).map(i => { return { id: i.type, count: i.count } })
-    return newCraft(wantedItem, {
-      availableItems: items,
-      careAboutExisting: false,
-      includeRecursion: true,
-      multipleRecipes: true
-    })
-  }
-
-  bot.planCraftInventory = craftWithInventory
 }
 
 export async function buildStatic (registry: IndexedData): Promise<CraftingFunc> {

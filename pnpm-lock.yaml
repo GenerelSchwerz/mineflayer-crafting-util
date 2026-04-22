@@ -23,6 +23,9 @@ importers:
       mocha:
         specifier: ^11.1.0
         version: 11.7.5
+      prismarine-block:
+        specifier: ^1.23.0
+        version: 1.23.0
       prismarine-recipe:
         specifier: ^1.5.0
         version: 1.5.0(prismarine-registry@1.12.0)

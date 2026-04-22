@@ -1,167 +1,194 @@
-const mineflayer = require("mineflayer")
+const mineflayer = require("mineflayer");
 
-const crafter = require("../lib").plugin
+const crafter = require("../lib").plugin;
 
 const bot = mineflayer.createBot({
-    host: process.argv[2], // optional
-    port: 25565,       // optional
-    username: "bot"
-})
+  host: process.argv[2], // optional
+  port: Number.isNaN(Number(process.argv[3])) ? 25565 : Number(process.argv[3]), // optional
+  username: "testing1",
+  auth: "microsoft",
+  version: "1.21.4",
+});
 
+bot.loadPlugin(crafter);
 
-bot.loadPlugin(crafter)
+async function setup(bot, ...args) {
+  const name = args[0];
+  const amt = parseInt(args[1] ?? "1");
+
+  const mdItem = bot.registry.itemsByName[name];
+  if (!mdItem) {
+    await bot.chat("Item not found");
+    return;
+  }
+
+  const items = normalizeInventoryToItems(bot);
+
+  const item2 = { id: mdItem.id, count: amt };
+  const plan = bot.planCraft(item2, { availableItems: items });
+
+  if (plan.success === false) {
+    await bot.chat("Can't craft that");
+    console.log(plan);
+    return;
+  }
+
+  let craftingTable = null;
+  if (plan.requiresCraftingTable) {
+    craftingTable = findCraftingTable(bot);
+    if (!craftingTable) {
+      bot.chat("No crafting table found");
+      return;
+    }
+  }
+
+  return { plan: plan, item: mdItem, craftingTable };
+}
+
+function stringifyItem(item) {
+  const mdItem = bot.registry.items[item.id];
+  return `${mdItem.name} x ${item.count}`;
+}
+
+function beautifyPlan(plan) {
+  const items = plan.itemsRequired
+    .filter((i) => i.count > 0)
+    .map(stringifyItem)
+    .join(", ");
+  return items;
+}
+
+function normalizeInventoryToItems(bot) {
+  return bot.inventory.items().map((item) => {
+    return { id: item.type, count: item.count };
+  });
+}
+
+  function findCraftingTable(bot) {
+    const craftingTable = bot.findBlock({
+      matching: bot.registry.blocksByName.crafting_table.id,
+      maxDistance: 3,
+    });
+
+    if (!craftingTable) {
+      bot.chat("No crafting table found");
+      return;
+    }
+    return craftingTable;
+  }
 
 bot.once("spawn", () => {
-    
-    function logInventory() {
-        const inventory = bot.inventory.items()
-        console.log("Inventory:")
-        for (const item of inventory) {
-            console.log(item.name, "x", item.count)
+  function logInventory() {
+    const inventory = bot.inventory.items();
+    console.log("Inventory:");
+    for (const item of inventory) {
+      console.log(item.name, "x", item.count);
+    }
+  }
+
+
+
+  async function clearInventory() {
+    const inventory = bot.inventory.slots;
+    for (const item of inventory) {
+      if (!item) continue;
+      if (item.name === "air") continue;
+      const mdItem = bot.registry.items[item.type];
+      if (!mdItem) continue;
+      if (mdItem.stackSize === 1) {
+        await bot.tossStack(item);
+      }
+    }
+  }
+
+  bot.on("chat", async (username, message) => {
+    const [cmd, ...args] = message.split(" ");
+
+    switch (cmd) {
+      case "testall":
+        try {
+          Object.values(bot.registry.itemsByName).forEach((i) => bot.planCraft({ id: i.id, count: 1 }));
+          bot.chat("All items succeeded!");
+        } catch (e) {
+          bot.chat("Had an error. Check console.");
+          console.log(e);
         }
-    }
+        break;
+      case "log":
+        logInventory();
+        break;
+      case "drop":
+        clearInventory();
+        break;
+      case "plan": {
+        const name = args[0];
+        const amt = parseInt(args[1] ?? "1");
 
-    // thanks GPT, this is not a thing.
-    function logCraftingTable() {
-        const inventory = bot.craftingTable.items()
-        console.log("Crafting Table:")
-        for (const item of inventory) {
-            console.log(item.name, "x", item.count)
+        const mdItem = bot.registry.itemsByName[name];
+        if (!mdItem) {
+          await bot.chat("Item not found");
+          return;
         }
-    }
+        const item = { id: mdItem.id, count: amt };
 
-    function stringifyItem(item) {
-        const mdItem = bot.registry.items[item.id]
-        return `${mdItem.name} x ${item.count}`
-    }
+        const plan = bot.planCraft(item);
+        console.log(plan);
 
-    function beautifyPlan(plan) {
-        const items = plan.itemsRequired.filter(i=>i.count>0).map(stringifyItem).join(", ")
-        return items
-    }
+        await bot.chat(beautifyPlan(plan));
+        break;
+      }
 
-    function findCraftingTable() {
-        const craftingTable = bot.findBlock({
-            matching: bot.registry.blocksByName.crafting_table.id,
-            maxDistance: 3
-        })
+      case "fastcraft": {
+        const name = args[0];
+        const amt = parseInt(args[1] ?? "1");
 
+        const mdItem = bot.registry.itemsByName[name];
+        if (!mdItem) {
+          await bot.chat("Item not found");
+          return;
+        }
+
+        const craftingTable = findCraftingTable(bot);
         if (!craftingTable) {
-            bot.chat("No crafting table found")
-            return;
+          bot.chat("No crafting table found");
+          return;
         }
-        return craftingTable;
-    }
 
-    async function clearInventory() {
-        const inventory = bot.inventory.slots
-        for (const item of inventory) {
-            if (!item) continue;
-            if (item.name === "air") continue;
-            const mdItem = bot.registry.items[item.type]
-            if (!mdItem) continue;
-            if (mdItem.stackSize === 1) {
-                await bot.tossStack(item)
-            }
+        await bot.craftItem(mdItem.id, amt, craftingTable);
+        bot.chat(`finished crafting ${name}`);
+
+        const found = bot.inventory.findInventoryItem(mdItem.id);
+        if (found == null) {
+          bot.chat("didnt actually craft the item...");
+          return;
         }
-    }
 
-    function normalizeInventoryToItems() {
-        return bot.inventory.items().map(item => {return {id: item.type, count: item.count}})
-    }
+        await bot.equip(found, "hand");
 
-      
+        break;
+      }
 
+      case "craft": {
+        const res = await setup(bot, ...args);
+        const  { plan, item, craftingTable } = res;
 
-
-    bot.on('chat', async (username, message) => { 
-        const [cmd, ...args] = message.split(" ")
-    
-    
-        switch (cmd) {
-            case "testall":
-                try {
-                    Object.values(bot.registry.itemsByName).forEach((i)=> bot.planCraft({id: i.id, count: 1}))
-                    bot.chat('All items succeeded!')
-                } catch (e) {
-                    bot.chat('Had an error. Check console.')
-                    console.log(e)
-                }
-                break;
-            case "log":
-                logInventory()
-                break;
-            case "drop":
-                clearInventory()
-                break;     
-            case "plan": {
-                const name = args[0];
-                const amt = parseInt(args[1] ?? "1");
-    
-                const mdItem = bot.registry.itemsByName[name];
-                if (!mdItem) {
-                    await bot.chat("Item not found")
-                    return;
-                }
-                const item = {id: mdItem.id, count: amt}
-    
-                const plan = bot.planCraft(item)
-                console.log(plan)
-
-                await bot.chat(beautifyPlan(plan))
-                break;
-            }
-            case "craft":
-                const name2 = args[0];
-                const amt2 = parseInt(args[1] ?? "1");
-    
-                const mdItem2 = bot.registry.itemsByName[name2];
-                if (!mdItem2) {
-                    await bot.chat("Item not found")
-                    return;
-                }
-
-                const items = normalizeInventoryToItems()
-                console.log(items.map(stringifyItem).join(", "))
-
-                const item2 = {id: mdItem2.id, count: amt2}
-                const plan2 = bot.planCraft(item2, {availableItems: items})  
-                
-                if (plan2.success === false) {
-                    await bot.chat("Can't craft that")
-                    console.log(plan2)
-                    return;
-                }
-
-                let craftingTable = false;
-                if (plan2.requiresCraftingTable) {
-                    craftingTable = findCraftingTable()
-                    if (!craftingTable) {
-                        bot.chat("No crafting table found")
-                        return;
-                    }
-
-                }
-                let idx = 0;
-                console.log(plan2.itemsRequired.map(stringifyItem).join(", "))
-                console.log(plan2.recipesToDo)
-                for (const info of plan2.recipesToDo) {
-                    console.log(idx, info.recipe.delta.map(stringifyItem).join(", "))
-                    await bot.chat(`Crafting ${bot.registry.items[info.recipe.result.id].name} x ${info.recipe.result.count}`)
-                    await bot.craft(info.recipe, info.recipeApplications, craftingTable)
-                    idx++;
-                    await bot.waitForTicks(10)
-                }
-
-                const mdItem3 = bot.registry.items[item2.id];
-                await bot.chat(`Crafted ${mdItem3.name} ${item2.count}`)
-                const equipItem = bot.inventory.items().find(i=>i.type === item2.id)
-                await bot.equip(equipItem, "hand")
-                break;
+        let idx = 0;
+        console.log(plan.itemsRequired.map(stringifyItem).join(", "));
+        console.log(plan.recipesToDo);
+        for (const info of plan.recipesToDo) {
+          console.log(idx, info.recipe.delta.map(stringifyItem).join(", "));
+          await bot.chat(`Crafting ${bot.registry.items[info.recipe.result.id].name} x ${info.recipe.result.count}`);
+          await bot.craft(info.recipe, info.recipeApplications, craftingTable);
+          idx++;
+          await bot.waitForTicks(10);
         }
-    })
-    
 
-})
-
-
+        const mdItem3 = bot.registry.items[item.id];
+        await bot.chat(`Crafted ${mdItem3.name} ${item.count}`);
+        const equipItem = bot.inventory.items().find((i) => i.type === item.id);
+        await bot.equip(equipItem, "hand");
+        break;
+      }
+    }
+  });
+});

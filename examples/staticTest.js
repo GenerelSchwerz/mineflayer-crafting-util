@@ -36,17 +36,21 @@ async function main(mcVersion) {
 
   const wantedItemName = process.argv[2] || "wooden_pickaxe";
   const wantedAmount = parseInt(process.argv[3]) || 1;
-
+  const woodName = mcData.itemsByName.oak_log != null ? "pale_oak_log" : "log";
 
   const wantedItem = { id: mcData.itemsByName[wantedItemName].id, count: wantedAmount };
-  
+
   const setup = {
     multipleRecipes: true,
   };
 
   if (process.argv[2] == null) {
-    const woodName = mcData.itemsByName.oak_log != null ? "pale_oak_log" : "log";
     setup.availableItems = [{ id: mcData.itemsByName[woodName].id, count: 2 }];
+  } else {
+    setup.availableItems = [
+      { id: mcData.itemsByName.cobbled_deepslate.id, count: 3 },
+      { id: mcData.itemsByName["stick"].id, count: 2 },
+    ];
   }
 
   const plan = crafter(wantedItem, setup);
