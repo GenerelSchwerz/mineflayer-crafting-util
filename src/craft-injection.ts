@@ -13,6 +13,22 @@ function recipeInputs (recipe: PRecipe): Item[] {
   return recipe.delta.filter((item) => item.count < 0)
 }
 
+function applyRecipeResults (
+  items: Item[],
+  recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>
+): void {
+  for (const toDo of recipesToDo) {
+    for (const item of toDo.recipe.delta) {
+      const index = items.findIndex((e) => e.id === item.id)
+      if (index !== -1) {
+        items[index].count += item.count * toDo.recipeApplications
+      } else {
+        items.push({ id: item.id, count: item.count * toDo.recipeApplications })
+      }
+    }
+  }
+}
+
 export function _build (Recipe: typeof PRecipe): CraftingFunc {
   function _newCraft (
     item: Item,
@@ -110,34 +126,56 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
           // do craft on all ingredients of current recipe
           inner: for (const ing of ingredients) {
-            const data = _newCraft({ id: ing.id, count: -ing.count }, candidateOpts, candidateSeen)
+            const data = _newCraft({ id: ing.id, count: -ing.count }, candidateOpts, new Map(candidateSeen))
             if (!data.success) continue inner
             results.push(data)
 
             candidateRecipes.push(...data.recipesToDo)
-
-            for (const item1 of data.recipesToDo) {
-              for (let j = 0; j < item1.recipe.delta.length; j++) {
-                const item = item1.recipe.delta[j]
-                const index = currentItems.findIndex((e) => e.id === item.id)
-                if (index !== -1) {
-                  currentItems[index].count += item.count * item1.recipeApplications
-                } else {
-                  currentItems.push({ id: item.id, count: item.count * item1.recipeApplications })
-                }
-              }
-            }
+            applyRecipeResults(currentItems, data.recipesToDo)
           }
 
           // if we successfully crafted all ingredients, we can craft this recipe
           if (results.length === ingredients.length) {
+            if (ingredients.length === 0) continue outer
+
             // with our available items properly managed now, we can do the standard crafting option.
-            let test
+            let test: { recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }> } | undefined
             let attemptCount = count - craftedCount
             tester: for (; attemptCount > 0; attemptCount--) {
-              const test1 = _newCraft({ id, count: attemptCount }, candidateOpts, candidateSeen, target)
-              if (test1.success) {
-                test = test1
+              const recipeApplications = Math.ceil(attemptCount / recipe.result.count)
+              const attemptItems = currentItems.map((item) => ({ ...item }))
+              const attemptRecipes = [...candidateRecipes]
+              const attemptOpts: CraftOptions = {
+                ...candidateOpts,
+                availableItems: attemptItems
+              }
+
+              for (const input of recipeInputs(recipe)) {
+                const required = -input.count * recipeApplications
+                const available = attemptItems.find((item) => item.id === input.id)?.count ?? 0
+                const deficit = required - available
+
+                if (deficit <= 0) continue
+
+                const deficitOpts: CraftOptions = {
+                  ...attemptOpts,
+                  availableItems: attemptItems.filter((item) => item.id !== input.id).map((item) => ({ ...item }))
+                }
+                const data = _newCraft({ id: input.id, count: deficit }, deficitOpts, new Map(candidateSeen))
+                if (!data.success) continue tester
+
+                attemptRecipes.push(...data.recipesToDo)
+                applyRecipeResults(attemptItems, data.recipesToDo)
+              }
+
+              const canCraft = recipeInputs(recipe).every((input) =>
+                (attemptItems.find((item) => item.id === input.id)?.count ?? 0) >= -input.count * recipeApplications
+              )
+
+              if (canCraft) {
+                currentItems.splice(0, currentItems.length, ...attemptItems)
+                candidateRecipes.splice(0, candidateRecipes.length, ...attemptRecipes)
+                test = { recipesToDo: [{ recipeApplications, recipe }] }
                 craftedCount += attemptCount
                 break tester
               }
@@ -146,21 +184,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
             if (test === undefined) continue outer
 
             candidateRecipes.push(...test.recipesToDo)
-
-            for (const toDo of test.recipesToDo) {
-              for (const ing of toDo.recipe.delta) {
-                const index = currentItems.findIndex((e) => e.id === ing.id)
-                // const num = (currentItems[index]?.count ?? 0) + ing.count * toDo.recipeApplications;
-                // if (num < 0) { // this should never happen, but just in case.
-                //   return { success: false, itemsRequired: [item], recipesToDo: [] };
-                // }
-                if (index !== -1) {
-                  currentItems[index].count += ing.count * toDo.recipeApplications
-                } else {
-                  currentItems.push({ id: ing.id, count: ing.count * toDo.recipeApplications })
-                }
-              }
-            }
+            applyRecipeResults(currentItems, test.recipesToDo)
 
             if (craftedCount !== count) {
               continue outer

@@ -47,8 +47,15 @@ In Minecraft `1.21.4`, `prismarine-recipe` exposes `stone_pickaxe` recipes with
 The available-items planner only checked whether `recipe.ingredients` was
 non-null. For an empty array, `every(...)` returned true, so the planner treated
 the first `stone_pickaxe` recipe as craftable. That first recipe uses
-`cobbled_deepslate`, not `cobblestone`, so later recursive planning could not
-produce a valid path from the supplied inventory.
+`cobbled_deepslate`, not `cobblestone`, so recursive planning could not produce
+a valid path from the supplied inventory.
+
+While fixing that, a second issue surfaced in the same candidate branch. After
+the planner crafted a missing child ingredient, retrying the parent by calling
+`_newCraft` for the same item reused `seen` state in ways that could either
+reject the parent as recursive or loop. The parent candidate also needs to fill
+remaining deficits caused by sibling ingredient consumption, such as sticks
+consuming planks before a pickaxe recipe consumes planks.
 
 ### Fix
 
@@ -58,6 +65,11 @@ Recipe input extraction is now normalized:
 2. Otherwise use the negative entries from `recipe.delta`.
 3. Use that normalized input list for available-items recipe matching, scoring,
    and missing-ingredient discovery.
+4. Replace the self-recursive parent retry with a direct candidate-inventory
+   check.
+5. Before appending the parent recipe, plan any remaining parent-input deficits
+   against the candidate inventory without counting already-reserved copies of
+   that input.
 
 The smoke rig also accepts generic inventory inputs through `--available`, so
 cases like this can be reproduced without editing scripts.
