@@ -48,8 +48,9 @@ async function main(mcVersion) {
     setup.availableItems = [{ id: mcData.itemsByName[woodName].id, count: 2 }];
   } else {
     setup.availableItems = [
-      { id: mcData.itemsByName.cobbled_deepslate.id, count: 3 },
-      { id: mcData.itemsByName["stick"].id, count: 2 },
+      { id: mcData.itemsByName.cobblestone.id, count: 3 },
+      { id: mcData.itemsByName[woodName].id, count: 2 },
+      // { id: mcData.itemsByName["stick"].id, count: 2 },
     ];
   }
 

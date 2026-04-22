@@ -8,6 +8,7 @@ function parseArgs (argv) {
     version: process.env.MC_VERSION || '1.21.4',
     wantedItem: 'wooden_pickaxe',
     woodItem: process.env.WOOD_ITEM || null,
+    available: process.env.AVAILABLE_ITEMS || null,
     timeoutMs: DEFAULT_TIMEOUT_MS
   }
 
@@ -16,10 +17,31 @@ function parseArgs (argv) {
     if (arg === '--version') args.version = argv[++i]
     else if (arg === '--wanted-item') args.wantedItem = argv[++i]
     else if (arg === '--wood-item') args.woodItem = argv[++i]
+    else if (arg === '--available') args.available = argv[++i]
     else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++i])
   }
 
   return args
+}
+
+function parseAvailableItems (mcData, value) {
+  if (value == null || value === '') return null
+
+  return value.split(',').map((entry) => {
+    const [name, countText] = entry.split(':')
+    const item = mcData.itemsByName[name]
+    const count = Number(countText)
+
+    if (item == null) {
+      throw new Error(`Unknown available item: ${name}`)
+    }
+
+    if (!Number.isInteger(count) || count <= 0) {
+      throw new Error(`Invalid available item count for ${name}: ${countText}`)
+    }
+
+    return { id: item.id, count }
+  })
 }
 
 async function runChild () {
@@ -32,18 +54,23 @@ async function runChild () {
     throw new Error(`Unknown wanted item: ${process.env.WANTED_ITEM}`)
   }
 
-  const woodItemName =
-    process.env.WOOD_ITEM ||
-    (mcData.itemsByName.oak_log != null ? 'oak_log' : 'log')
-  const wood = mcData.itemsByName[woodItemName]
-  if (wood == null) {
-    throw new Error(`Unknown wood item: ${woodItemName}`)
+  const availableItems = parseAvailableItems(mcData, process.env.AVAILABLE_ITEMS)
+  let woodItemName = process.env.WOOD_ITEM || null
+  let finalAvailableItems = availableItems
+
+  if (finalAvailableItems == null) {
+    woodItemName = woodItemName || (mcData.itemsByName.oak_log != null ? 'oak_log' : 'log')
+    const wood = mcData.itemsByName[woodItemName]
+    if (wood == null) {
+      throw new Error(`Unknown wood item: ${woodItemName}`)
+    }
+    finalAvailableItems = [{ id: wood.id, count: 2 }]
   }
 
   const plan = crafter(
     { id: wanted.id, count: 1 },
     {
-      availableItems: [{ id: wood.id, count: 2 }],
+      availableItems: finalAvailableItems,
       multipleRecipes: true
     }
   )
@@ -52,6 +79,10 @@ async function runChild () {
     version: process.env.MC_VERSION,
     wantedItem: process.env.WANTED_ITEM,
     woodItem: woodItemName,
+    availableItems: finalAvailableItems.map((item) => ({
+      name: mcData.items[item.id].name,
+      count: item.count
+    })),
     success: plan.success,
     stepCount: plan.recipesToDo.length,
     itemsRequired: plan.itemsRequired,
@@ -73,7 +104,8 @@ async function runParent () {
     PLAN_SMOKE_CHILD: '1',
     MC_VERSION: args.version,
     WANTED_ITEM: args.wantedItem,
-    WOOD_ITEM: args.woodItem || ''
+    WOOD_ITEM: args.woodItem || '',
+    AVAILABLE_ITEMS: args.available || ''
   }
 
   const child = spawn(process.execPath, [path.join(__dirname, 'staticPlanSmoke.js')], {

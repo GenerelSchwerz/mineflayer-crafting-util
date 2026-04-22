@@ -8,6 +8,7 @@ const DEFAULT_CASES = [
   { version: '1.18.2', wantedItem: 'wooden_pickaxe', woodItem: 'oak_log' },
   { version: '1.21.4', wantedItem: 'wooden_pickaxe', woodItem: 'oak_log' },
   { version: '1.21.4', wantedItem: 'wooden_pickaxe', woodItem: 'pale_oak_log' },
+  { version: '1.21.4', wantedItem: 'stone_pickaxe', available: 'cobblestone:3,oak_log:1' },
   { version: '1.21.11', wantedItem: 'wooden_pickaxe', woodItem: 'oak_log' },
   { version: '1.21.11', wantedItem: 'wooden_pickaxe', woodItem: 'pale_oak_log' },
   { version: '1.21.11', wantedItem: 'wooden_pickaxe', woodItem: 'birch_log' }
@@ -22,11 +23,11 @@ function runCase (testCase, timeoutMs) {
       testCase.version,
       '--wanted-item',
       testCase.wantedItem,
-      '--wood-item',
-      testCase.woodItem,
       '--timeout-ms',
       String(timeoutMs)
-    ],
+    ].concat(testCase.available != null
+      ? ['--available', testCase.available]
+      : ['--wood-item', testCase.woodItem]),
     {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -71,12 +72,14 @@ function main () {
     const result = runCase(testCase, timeoutMs)
 
     if (result.ok) {
+      const label = result.available ?? result.woodItem
       console.log(
-        `${result.version} ${result.woodItem}: stepCount=${result.stepCount}, table=${result.requiresCraftingTable}, success=${result.success}`
+        `${result.version} ${result.wantedItem} ${label}: stepCount=${result.stepCount}, table=${result.requiresCraftingTable}, success=${result.success}`
       )
     } else {
       failed = true
-      console.log(`${result.version} ${result.woodItem}: FAIL ${result.error}`)
+      const label = result.available ?? result.woodItem
+      console.log(`${result.version} ${result.wantedItem} ${label}: FAIL ${result.error}`)
     }
   }
 

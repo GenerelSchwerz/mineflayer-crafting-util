@@ -1,5 +1,67 @@
 # Development Log
 
+## 2026-04-22: `stone_pickaxe` fails with `3 cobblestone + 1 oak_log`
+
+### Symptom
+
+The static planner can find a `stone_pickaxe` recipe when no available
+inventory is supplied, but fails when the inventory is functionally sufficient:
+
+```txt
+availableItems:
+  cobblestone x 3
+  oak_log x 1
+```
+
+This should produce:
+
+```txt
+oak_log x -1 => oak_planks x 4
+oak_planks x -2 => stick x 4
+cobblestone x -3, stick x -2 => stone_pickaxe x 1
+```
+
+Instead, the available-items planner returns `success=false` with no recipe
+steps.
+
+### Reproduction
+
+Build first because the smoke script imports `../lib`:
+
+```sh
+npm run build
+```
+
+Then run:
+
+```sh
+node scripts/staticPlanSmoke.js --version 1.21.4 --wanted-item stone_pickaxe --available cobblestone:3,oak_log:1 --timeout-ms 4000
+```
+
+### Root cause
+
+In Minecraft `1.21.4`, `prismarine-recipe` exposes `stone_pickaxe` recipes with
+`recipe.ingredients` as an empty array, while the real inputs are present in
+`recipe.delta`.
+
+The available-items planner only checked whether `recipe.ingredients` was
+non-null. For an empty array, `every(...)` returned true, so the planner treated
+the first `stone_pickaxe` recipe as craftable. That first recipe uses
+`cobbled_deepslate`, not `cobblestone`, so later recursive planning could not
+produce a valid path from the supplied inventory.
+
+### Fix
+
+Recipe input extraction is now normalized:
+
+1. Use `recipe.ingredients` only when it exists and has entries.
+2. Otherwise use the negative entries from `recipe.delta`.
+3. Use that normalized input list for available-items recipe matching, scoring,
+   and missing-ingredient discovery.
+
+The smoke rig also accepts generic inventory inputs through `--available`, so
+cases like this can be reproduced without editing scripts.
+
 ## 2026-04-21: `1.21.4` wood recipe ordering and missing plank craft
 
 ### Symptom

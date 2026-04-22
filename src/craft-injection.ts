@@ -8,6 +8,11 @@ const gettableItems = [263, 264, 265, 266, 296, 331, 341, 388] // TODO : should 
 
 type CraftingFunc = (item: Item, opts?: CraftOptions) => CraftingPlan
 
+function recipeInputs (recipe: PRecipe): Item[] {
+  if (recipe.ingredients != null && recipe.ingredients.length > 0) return recipe.ingredients
+  return recipe.delta.filter((item) => item.count < 0)
+}
+
 export function _build (Recipe: typeof PRecipe): CraftingFunc {
   function _newCraft (
     item: Item,
@@ -56,11 +61,8 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
       seen.set(id, item)
 
-      recipeWanted = recipes.find((r) => {
-        if (r.ingredients != null) return r.ingredients.every(e => (availableItems.find(i => i.id === e.id)?.count ?? 0) >= -e.count)
-        else return r.delta.slice(0, -1).every((e) => (availableItems.find((i) => i.id === e.id)?.count ?? 0) >= -e.count)
-      }
-
+      recipeWanted = recipes.find((r) =>
+        recipeInputs(r).every((e) => (availableItems.find((i) => i.id === e.id)?.count ?? 0) >= -e.count)
       )
 
       if (recipeWanted == null) {
@@ -68,9 +70,9 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
         const scoredRecipes = recipes
           .map((recipe) => {
-            const delta = recipe.delta.slice(0, -1).map((e) => ({ id: e.id, count: -e.count }))
+            const ingredients = recipeInputs(recipe).map((e) => ({ id: e.id, count: -e.count }))
             const score = availableItems.filter(
-              (have) => delta.findIndex((wanted) => wanted.id === have.id && wanted.count <= have.count) !== -1
+              (have) => ingredients.findIndex((wanted) => wanted.id === have.id && wanted.count <= have.count) !== -1
             ).length
 
             return { recipe, score }
@@ -95,10 +97,10 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
           const candidateSeen = new Map(seen)
           const candidateRecipes: Array<{ recipeApplications: number, recipe: PRecipe }> = []
           const recipe = scoredRecipe.recipe
-          const ingredien = recipe.delta.slice(0, -1)
+          const recipeIngredients = recipeInputs(recipe)
 
           // all items that need to be crafted to craft this recipe
-          let ingredients = ingredien.filter((i) => currentItems.find((e) => e.id === i.id && e.count >= -i.count) === undefined)
+          let ingredients = recipeIngredients.filter((i) => currentItems.find((e) => e.id === i.id && e.count >= -i.count) === undefined)
 
           // store all results for crafting attempts on all ingredients of current recipe
           const results: Array<ReturnType<typeof _newCraft>> = []
