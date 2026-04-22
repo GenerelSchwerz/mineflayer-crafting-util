@@ -6,3 +6,7 @@ examples/
 tsconfig.json
 bun.lockb
 yarn.lock
+
+docs/
+scripts/
+pnpm-lock.yaml
