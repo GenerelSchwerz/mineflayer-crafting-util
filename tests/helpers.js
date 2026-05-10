@@ -12,7 +12,16 @@ function stringifyItem (registry, item) {
 
 function extractPlanDetails (registry, plan) {
   return {
-    itemsRequired: plan.itemsRequired
+    itemsRequiredBase: plan.itemsRequiredBase
+      .filter((item) => item.count > 0)
+      .map((item) => stringifyItem(registry, item)),
+    itemsRequiredImmediate: plan.itemsRequiredImmediate
+      .filter((item) => item.count > 0)
+      .map((item) => stringifyItem(registry, item)),
+    itemsRemaining: plan.itemsRemaining
+      .filter((item) => item.count > 0)
+      .map((item) => stringifyItem(registry, item)),
+    itemsCreated: (plan.itemsCreated ?? [])
       .filter((item) => item.count > 0)
       .map((item) => stringifyItem(registry, item)),
     plans: plan.recipesToDo.map(({ recipeApplications, recipe }) => {

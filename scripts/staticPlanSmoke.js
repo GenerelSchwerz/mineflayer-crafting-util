@@ -92,7 +92,10 @@ async function runChild () {
     })),
     success: plan.success,
     stepCount: plan.recipesToDo.length,
-    itemsRequired: plan.itemsRequired,
+    itemsRequiredBase: plan.itemsRequiredBase,
+    itemsRequiredImmediate: plan.itemsRequiredImmediate,
+    itemsRemaining: plan.itemsRemaining,
+    itemsCreated: plan.itemsCreated,
     requiresCraftingTable: plan.requiresCraftingTable,
     plan: plan.recipesToDo.map(({ recipeApplications, recipe }) => ({
       recipeApplications,

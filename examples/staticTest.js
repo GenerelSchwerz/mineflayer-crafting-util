@@ -6,7 +6,19 @@ function stringifyItem(registry, item) {
 }
 
 function beautifyPlan(registry, plan) {
-  const itemsRequired = plan.itemsRequired
+  const itemsRequiredBase = plan.itemsRequiredBase
+    .filter((i) => i.count > 0)
+    .map(stringifyItem.bind(null, registry))
+    .join(", ");
+  const itemsRequiredImmediate = plan.itemsRequiredImmediate
+    .filter((i) => i.count > 0)
+    .map(stringifyItem.bind(null, registry))
+    .join(", ");
+  const itemsRemaining = plan.itemsRemaining
+    .filter((i) => i.count > 0)
+    .map(stringifyItem.bind(null, registry))
+    .join(", ");
+  const itemsCreated = plan.itemsCreated
     .filter((i) => i.count > 0)
     .map(stringifyItem.bind(null, registry))
     .join(", ");
@@ -26,8 +38,8 @@ function beautifyPlan(registry, plan) {
       }
     })
     .join("\n\t");
-  return `Items required:\n\t${itemsRequired}\nSuccess: ${plan.success}\nPlans:\n\t${plans}`;
-  // return itemsRequired
+  return `Items required base:\n\t${itemsRequiredBase}\nItems required immediate:\n\t${itemsRequiredImmediate}\nItems remaining:\n\t${itemsRemaining}\nItems created:\n\t${itemsCreated}\nSuccess: ${plan.success}\nPlans:\n\t${plans}`;
+  // return itemsRequiredBase
 }
 
 async function main(mcVersion) {

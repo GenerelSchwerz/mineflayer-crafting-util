@@ -37,7 +37,9 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     const usesModernWoodNames = mcDataInstance.isNewerOrEqualTo('1.21.4')
 
     expect(plan.success).to.equal(true)
-    expect(plan.itemsRequired).to.deep.equal([])
+    expect(plan.itemsRequiredBase).to.deep.equal([])
+    expect(plan.itemsRequiredImmediate).to.deep.equal([])
+    expect(plan.itemsRemaining).to.deep.equal([])
     expect(plan.requiresCraftingTable).to.equal(true)
 
     const expectedSteps = usesModernWoodNames
@@ -136,7 +138,9 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
     expect(plan.success).to.equal(true)
-    expect(plan.itemsRequired.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.requiresCraftingTable).to.equal(true)
 
     expectPlanStep(extracted.plans, {
@@ -179,7 +183,9 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
     expect(plan.success).to.equal(true)
-    expect(plan.itemsRequired.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.requiresCraftingTable).to.equal(true)
 
     const plankApplications = extracted.plans
@@ -222,7 +228,9 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
     expect(plan.success).to.equal(true)
-    expect(plan.itemsRequired.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.requiresCraftingTable).to.equal(true)
 
     expectPlanStep(extracted.plans, {
@@ -263,10 +271,137 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
         multipleRecipes: true
       }
     )
+    const extracted = extractPlanDetails(mcDataInstance, plan)
 
     expect(plan.success).to.equal(false)
-    expect(plan.recipesToDo).to.deep.equal([])
-    expect(plan.itemsRequired.some((item) => item.id === wantedItem.id && item.count > 0)).to.equal(true)
+    expect(plan.recipesToDo).not.to.deep.equal([])
+    expect(extracted.itemsRequiredBase).to.deep.equal([{ name: 'oak_log', count: 1 }])
+    expect(extracted.itemsRequiredImmediate).to.deep.equal([{ name: 'stick', count: 2 }])
+    expect(extracted.itemsRemaining).to.deep.equal([{ name: 'iron_pickaxe', count: 1 }])
+    expect(extracted.itemsCreated).to.deep.include({ name: 'iron_pickaxe', count: 8 })
+  })
+
+  it('keeps base requirements in the alternate recipe family used by the partial plan', function () {
+    const wantedItem = mcDataInstance.itemsByName.iron_pickaxe
+    const woodItem = getItemByPreferredNames(
+      mcDataInstance,
+      ['pale_oak_log', 'spruce_log', 'log'],
+      'alternate log'
+    )
+
+    expect(wantedItem, 'Could not find iron_pickaxe').to.exist
+
+    const plan = crafter(
+      { id: wantedItem.id, count: 9 },
+      {
+        availableItems: buildAvailableItems(mcDataInstance, [
+          ['iron_block', 3],
+          [woodItem.name, 2]
+        ]),
+        multipleRecipes: true
+      }
+    )
+    const extracted = extractPlanDetails(mcDataInstance, plan)
+
+    expect(plan.success).to.equal(false)
+    expect(extracted.itemsRequiredBase).to.deep.equal([{ name: woodItem.name, count: 1 }])
+    expect(extracted.itemsRequiredImmediate).to.deep.equal([{ name: 'stick', count: 2 }])
+    expect(extracted.itemsRemaining).to.deep.equal([{ name: 'iron_pickaxe', count: 1 }])
+    expect(extracted.itemsCreated).to.deep.include({ name: 'iron_pickaxe', count: 8 })
+  })
+
+  it('uses alternate plank recipes when enough items are available in one family', function () {
+    const wantedItem = mcDataInstance.itemsByName.wooden_sword
+    const plankItem = getItemByPreferredNames(
+      mcDataInstance,
+      ['spruce_planks', 'birch_planks', 'planks'],
+      'alternate planks'
+    )
+
+    expect(wantedItem, 'Could not find wooden_sword').to.exist
+
+    const plan = crafter(
+      { id: wantedItem.id, count: 1 },
+      {
+        availableItems: buildAvailableItems(mcDataInstance, [
+          [plankItem.name, 2],
+          ['stick', 1]
+        ]),
+        multipleRecipes: true
+      }
+    )
+    const extracted = extractPlanDetails(mcDataInstance, plan)
+
+    expect(plan.success).to.equal(true)
+    expect(extracted.itemsRequiredBase).to.deep.equal([])
+    expect(extracted.itemsRequiredImmediate).to.deep.equal([])
+    expect(extracted.itemsRemaining).to.deep.equal([])
+    expectPlanStep(extracted.plans, {
+      ingredients: [
+        { count: -2, nameIncludes: plankItem.name },
+        { count: -1, nameIncludes: 'stick' }
+      ],
+      result: { count: 1, nameIncludes: 'wooden_sword' },
+      applications: 1
+    })
+  })
+
+  it.skip('crafts a wooden sword from mixed plank variants accepted by Minecraft tag recipes', function () {
+    const wantedItem = mcDataInstance.itemsByName.wooden_sword
+
+    expect(wantedItem, 'Could not find wooden_sword').to.exist
+    expect(mcDataInstance.itemsByName.spruce_planks, 'Could not find spruce_planks').to.exist
+    expect(mcDataInstance.itemsByName.birch_planks, 'Could not find birch_planks').to.exist
+
+    const plan = crafter(
+      { id: wantedItem.id, count: 1 },
+      {
+        availableItems: buildAvailableItems(mcDataInstance, [
+          ['spruce_planks', 1],
+          ['birch_planks', 1],
+          ['stick', 1]
+        ]),
+        multipleRecipes: true
+      }
+    )
+
+    expect(plan.success).to.equal(true)
+  })
+
+  it('splits partial available-item plans into base, immediate, remaining, and created items', function () {
+    const wantedItem = mcDataInstance.itemsByName.stick
+    const woodItem = getItemByPreferredNames(
+      mcDataInstance,
+      ['oak_log', 'log'],
+      'log'
+    )
+
+    expect(wantedItem, 'Could not find stick').to.exist
+
+    const plan = crafter(
+      { id: wantedItem.id, count: 14 },
+      {
+        availableItems: [{ id: woodItem.id, count: 1 }],
+        multipleRecipes: true
+      }
+    )
+    const extracted = extractPlanDetails(mcDataInstance, plan)
+
+    expect(plan.success).to.equal(false)
+    expect(extracted.itemsRequiredBase).to.deep.equal([{ name: 'oak_log', count: 1 }])
+    expect(extracted.itemsRequiredImmediate).to.deep.equal([{ name: 'oak_planks', count: 4 }])
+    expect(extracted.itemsRemaining).to.deep.equal([{ name: 'stick', count: 6 }])
+    expect(extracted.itemsCreated).to.deep.equal([{ name: 'stick', count: 8 }])
+    expectPlanStep(extracted.plans, {
+      ingredients: [{ count: -1, nameIncludes: 'log' }],
+      result: { count: 4, nameIncludes: 'plank' },
+      applications: 1
+    })
+    expectPlanStep(extracted.plans, {
+      ingredients: [{ count: -2, nameIncludes: 'plank' }],
+      result: { count: 4, nameIncludes: 'stick' },
+      applications: 2
+    })
   })
 
   it('crafts repeated sticks when the first application is already available', function () {
@@ -287,7 +422,9 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
     expect(plan.success).to.equal(true)
-    expect(plan.itemsRequired.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
 
     expectPlanStep(extracted.plans, {
       ingredients: [{ count: -1, nameIncludes: 'oak_log' }],
@@ -319,7 +456,9 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
     expect(plan.success).to.equal(true)
-    expect(plan.itemsRequired.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.requiresCraftingTable).to.equal(true)
 
     expectPlanStep(extracted.plans, {

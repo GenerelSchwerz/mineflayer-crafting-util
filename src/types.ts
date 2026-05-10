@@ -17,7 +17,10 @@ export interface RecipeInfo {
 
 export interface CraftingPlan {
   success: boolean
-  itemsRequired: Item[]
+  itemsRequiredBase: Item[]
+  itemsRequiredImmediate: Item[]
+  itemsRemaining: Item[]
+  itemsCreated: Item[]
   recipesToDo: RecipeInfo[]
   requiresCraftingTable: boolean
 }

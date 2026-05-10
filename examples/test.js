@@ -51,7 +51,7 @@ function stringifyItem(item) {
 }
 
 function beautifyPlan(plan) {
-  const items = plan.itemsRequired
+  const items = plan.itemsRequiredBase
     .filter((i) => i.count > 0)
     .map(stringifyItem)
     .join(", ");
@@ -164,7 +164,9 @@ bot.once("spawn", () => {
         const  { plan, item, craftingTable } = res;
 
         let idx = 0;
-        console.log(plan.itemsRequired.map(stringifyItem).join(", "));
+        console.log("required base", plan.itemsRequiredBase.map(stringifyItem).join(", "));
+        console.log("required immediate", plan.itemsRequiredImmediate.map(stringifyItem).join(", "));
+        console.log("remaining", plan.itemsRemaining.map(stringifyItem).join(", "));
         console.log(plan.recipesToDo);
         for (const info of plan.recipesToDo) {
           console.log(idx, info.recipe.delta.map(stringifyItem).join(", "));

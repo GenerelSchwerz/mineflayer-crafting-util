@@ -41,7 +41,7 @@ bot.once('spawn', async () => {
   const plan = bot.planCraftInventory({ id: stick.id, count: 4 })
 
   if (!plan.success) {
-    console.log('Missing:', plan.itemsRequired)
+    console.log('Missing base items:', plan.itemsRequiredBase)
     return
   }
 
@@ -270,7 +270,10 @@ Note: `availableItems` may be normalized by the planner. Pass a cloned array if 
 ```ts
 interface CraftingPlan {
   success: boolean
-  itemsRequired: Item[]
+  itemsRequiredBase: Item[]
+  itemsRequiredImmediate: Item[]
+  itemsRemaining: Item[]
+  itemsCreated: Item[]
   recipesToDo: RecipeInfo[]
   requiresCraftingTable: boolean
 }
@@ -279,7 +282,10 @@ interface CraftingPlan {
 | Property | Description |
 | --- | --- |
 | `success` | Whether the planner found a valid plan. |
-| `itemsRequired` | Missing base items or remaining requirements. For successful available-item plans, positive counts should usually be empty. |
+| `itemsRequiredBase` | Base items needed to complete the request, after accounting for `recipesToDo`. |
+| `itemsRequiredImmediate` | Direct recipe inputs needed at the point planning stopped. |
+| `itemsRemaining` | Requested output that is still not satisfied by the partial plan. |
+| `itemsCreated` | Net positive items produced by `recipesToDo`. On partial available-item plans, this shows what can be created even when `success` is `false`. |
 | `recipesToDo` | Ordered recipe applications to execute. |
 | `requiresCraftingTable` | Whether any step in `recipesToDo` requires a crafting table. |
 

@@ -17,7 +17,10 @@ interface RecipeAndAmt {
 }
 
 interface Plan {
-  itemsRequired: Item[];
+  itemsRequiredBase: Item[];
+  itemsRequiredImmediate: Item[];
+  itemsRemaining: Item[];
+  itemsCreated: Item[];
   recipesToDo: RecipeAndAmt[];
 }
 
@@ -32,7 +35,10 @@ function stringifyItem(registry: Registry, item: Item): string {
 }
 
 function beautifyPlan(registry: Registry, plan: Plan): string {
-  const itemsRequired = plan.itemsRequired.filter(i => i.count > 0).map(stringifyItem.bind(null, registry)).join(", ");
+  const itemsRequiredBase = plan.itemsRequiredBase.filter(i => i.count > 0).map(stringifyItem.bind(null, registry)).join(", ");
+  const itemsRequiredImmediate = plan.itemsRequiredImmediate.filter(i => i.count > 0).map(stringifyItem.bind(null, registry)).join(", ");
+  const itemsRemaining = plan.itemsRemaining.filter(i => i.count > 0).map(stringifyItem.bind(null, registry)).join(", ");
+  const itemsCreated = plan.itemsCreated.filter(i => i.count > 0).map(stringifyItem.bind(null, registry)).join(", ");
   const plans = plan.recipesToDo.map(recipeAndAmt => {
     const { recipeApplications, recipe } = recipeAndAmt;
     
@@ -45,7 +51,7 @@ function beautifyPlan(registry: Registry, plan: Plan): string {
     }
   }).join("\n\t");
 
-  return `Items required:\n\t${itemsRequired}\nPlans:\n\t${plans}`;
+  return `Items required base:\n\t${itemsRequiredBase}\nItems required immediate:\n\t${itemsRequiredImmediate}\nItems remaining:\n\t${itemsRemaining}\nItems created:\n\t${itemsCreated}\nPlans:\n\t${plans}`;
 }
 
 async function main(mcVersion: string): Promise<void> {

@@ -7,6 +7,14 @@ import type { IndexedData } from 'minecraft-data'
 const gettableItems = [263, 264, 265, 266, 296, 331, 341, 388] // TODO : should be replaced by smelting recipe data
 
 type CraftingFunc = (item: Item, opts?: CraftOptions) => CraftingPlan
+interface PlanResult {
+  success: boolean
+  itemsRequiredBase: Item[]
+  itemsRequiredImmediate: Item[]
+  itemsRemaining: Item[]
+  itemsCreated: Item[]
+  recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>
+}
 
 function recipeInputs (recipe: PRecipe): Item[] {
   if (recipe.ingredients != null && recipe.ingredients.length > 0) return recipe.ingredients
@@ -68,13 +76,170 @@ function cloneAvailableItems (items: Item[]): Item[] {
     .map((item) => ({ ...item }))
 }
 
+function addItems (items: Item[], itemToAdd: Item): void {
+  const item = items.find((item) => item.id === itemToAdd.id)
+
+  if (item != null) {
+    item.count += itemToAdd.count
+  } else {
+    items.push({ ...itemToAdd })
+  }
+}
+
+function mergeItems (items: Item[]): Item[] {
+  const merged: Item[] = []
+
+  for (const item of items) {
+    if (item.count > 0) addItems(merged, item)
+  }
+
+  return merged
+}
+
+function summarizeItemsCreated (
+  recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>
+): Item[] {
+  const map = new Map<number, number>()
+
+  for (const toDo of recipesToDo) {
+    for (const item of toDo.recipe.delta) {
+      map.set(item.id, (map.get(item.id) ?? 0) + item.count * toDo.recipeApplications)
+    }
+  }
+
+  return Array.from(map.entries())
+    .filter(([, count]) => count > 0)
+    .map(([id, count]) => ({ id, count }))
+}
+
+function createPlanResult (
+  success: boolean,
+  itemsRequiredBase: Item[],
+  recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>,
+  itemsCreated = summarizeItemsCreated(recipesToDo),
+  itemsRequiredImmediate = itemsRequiredBase,
+  itemsRemaining: Item[] = []
+): PlanResult {
+  return {
+    success,
+    itemsRequiredBase,
+    itemsRequiredImmediate,
+    itemsRemaining,
+    itemsCreated,
+    recipesToDo
+  }
+}
+
 export function _build (Recipe: typeof PRecipe): CraftingFunc {
+  function getRecipeDeficits (
+    availableItems: Item[],
+    recipe: PRecipe,
+    recipeApplications: number
+  ): Item[] {
+    return recipeInputs(recipe)
+      .map((input) => {
+        const required = -input.count * recipeApplications
+        const available = availableItems.find((item) => item.id === input.id)?.count ?? 0
+        return { id: input.id, count: required - available }
+      })
+      .filter((item) => item.count > 0)
+  }
+
+  function findPlannedRecipe (
+    itemId: number,
+    recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>
+  ): PRecipe | undefined {
+    for (let i = recipesToDo.length - 1; i >= 0; i--) {
+      if (recipesToDo[i].recipe.result.id === itemId) return recipesToDo[i].recipe
+    }
+    return undefined
+  }
+
+  function getBaseRequirements (
+    items: Item[],
+    opts: CraftOptions,
+    recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }> = [],
+    seen = new Set<number>()
+  ): Item[] {
+    const requirements: Item[] = []
+
+    for (const item of items) {
+      const recipe = findPlannedRecipe(item.id, recipesToDo)
+      if (recipe != null && !seen.has(item.id)) {
+        seen.add(item.id)
+        const recipeApplications = Math.ceil(item.count / recipe.result.count)
+        const inputs = recipeInputs(recipe).map((input) => ({
+          id: input.id,
+          count: -input.count * recipeApplications
+        }))
+
+        for (const required of getBaseRequirements(inputs, opts, recipesToDo, seen)) {
+          addItems(requirements, required)
+        }
+
+        seen.delete(item.id)
+        continue
+      }
+
+      const data = _newCraft(
+        item,
+        {
+          ...opts,
+          availableItems: undefined
+        },
+        new Map()
+      )
+
+      for (const required of data.itemsRequiredBase) addItems(requirements, required)
+    }
+
+    return mergeItems(requirements)
+  }
+
+  function getPartialRequirements (
+    itemId: number,
+    remainingCount: number,
+    availableItems: Item[],
+    recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>,
+    opts: CraftOptions
+  ): { itemsRequiredBase: Item[], itemsRequiredImmediate: Item[], itemsRemaining: Item[] } {
+    const remaining = [{ id: itemId, count: remainingCount }]
+    const currentItems = cloneAvailableItems(availableItems)
+    applyRecipeResults(currentItems, recipesToDo)
+
+    let completionRecipe: PRecipe | undefined
+    for (let i = recipesToDo.length - 1; i >= 0; i--) {
+      if (recipesToDo[i].recipe.result.id === itemId) {
+        completionRecipe = recipesToDo[i].recipe
+        break
+      }
+    }
+
+    if (completionRecipe == null) {
+      return {
+        itemsRequiredBase: remaining,
+        itemsRequiredImmediate: remaining,
+        itemsRemaining: remaining
+      }
+    }
+
+    const recipeApplications = Math.ceil(remainingCount / completionRecipe.result.count)
+    const immediate = mergeItems(getRecipeDeficits(currentItems, completionRecipe, recipeApplications))
+    const base = getBaseRequirements(immediate, opts, recipesToDo)
+
+    return {
+      itemsRequiredBase: base,
+      itemsRequiredImmediate: immediate,
+      itemsRemaining: remaining
+    }
+  }
+
   function _newCraft (
     item: Item,
     opts: CraftOptions = {},
     seen = new Map(),
     target = item.count
-  ): { success: boolean, itemsRequired: Item[], recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }> } {
+  ): PlanResult {
     const id = item.id
     let recipes = Recipe.find(id, null)
 
@@ -100,18 +265,18 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
       matchingItem = availableItems.find((e) => e.id === id && e.count >= target)
       if (matchingItem != null) {
         if (matchingItem.count >= target) {
-          return { success: true, itemsRequired: [], recipesToDo: [] } // already have item, no need to craft it.
+          return createPlanResult(true, [], []) // already have item, no need to craft it.
         } else {
           count -= matchingItem.count
         }
       }
 
       if (recipes.length === 0 || gettableItems.includes(id)) {
-        return { success: true, itemsRequired: [item], recipesToDo: [] }
+        return createPlanResult(true, [item], [])
       }
 
       if (seen.has(id)) {
-        return { success: false, itemsRequired: [item], recipesToDo: [] }
+        return createPlanResult(false, [item], [])
       }
 
       seen.set(id, item)
@@ -139,6 +304,8 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
         // store current amount of items available to be crafted
         let craftedCount = 0
+        let bestPartialCount = 0
+        let bestPartialRecipes: Array<{ recipeApplications: number, recipe: PRecipe }> = []
 
         outer: for (const scoredRecipe of scoredRecipes) {
           if (scoredRecipe.score !== mostAmt) continue
@@ -232,6 +399,10 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
             candidateRecipes.push(...test.recipesToDo)
             applyRecipeResults(currentItems, test.recipesToDo)
+            if (craftedCount > bestPartialCount) {
+              bestPartialCount = craftedCount
+              bestPartialRecipes = [...candidateRecipes]
+            }
 
             if (craftedCount !== count) {
               if (multipleRecipes && craftedCount > 0) {
@@ -249,22 +420,18 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
                 )
 
                 if (data.success) {
-                  return {
-                    success: true,
-                    itemsRequired: ret0.concat(data.itemsRequired),
-                    recipesToDo: candidateRecipes.concat(data.recipesToDo)
-                  }
+                  return createPlanResult(
+                    true,
+                    ret0.concat(data.itemsRequiredBase),
+                    candidateRecipes.concat(data.recipesToDo)
+                  )
                 }
               }
 
               continue outer
             }
 
-            return {
-              success: true,
-              itemsRequired: ret0,
-              recipesToDo: candidateRecipes
-            }
+            return createPlanResult(true, ret0, candidateRecipes)
           }
         }
 
@@ -272,18 +439,33 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
         const hasNoRecipes = recipes.length === 0 || gettableItems.includes(id)
         const weHaveItem = availableItems.find((e) => e.id === id && e.count >= count)
         if (hasNoRecipes && weHaveItem != null) {
-          return { success: true, itemsRequired: [], recipesToDo: [] }
+          return createPlanResult(true, [], [])
         } else {
+          if (bestPartialCount > 0) {
+            const partialRequirements = getPartialRequirements(
+              id,
+              count - bestPartialCount,
+              availableItems,
+              bestPartialRecipes,
+              opts
+            )
+
+            return createPlanResult(
+              false,
+              partialRequirements.itemsRequiredBase,
+              bestPartialRecipes,
+              undefined,
+              partialRequirements.itemsRequiredImmediate,
+              partialRequirements.itemsRemaining
+            )
+          }
+
           if (!multipleRecipes || (hasNoRecipes && weHaveItem == null)) {
             const new1 = { id, count: count - craftedCount }
-            return { success: false, itemsRequired: [new1], recipesToDo: [] }
+            return createPlanResult(false, [new1], [])
           } else {
             const data = _newCraft({ id, count: count - craftedCount }, opts, seen, target)
-            return {
-              success: data.success,
-              itemsRequired: ret0.concat(data.itemsRequired),
-              recipesToDo: ret1.concat(data.recipesToDo)
-            }
+            return createPlanResult(data.success, ret0.concat(data.itemsRequiredBase), ret1.concat(data.recipesToDo))
           }
         }
       }
@@ -293,14 +475,14 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
       recipeWanted = found ?? recipes[0]
 
       if (recipes.length === 0 || gettableItems.includes(id)) {
-        return { success: true, itemsRequired: [item], recipesToDo: [] }
+        return createPlanResult(true, [item], [])
       }
 
       if (seen.has(id)) {
         if (!includeRecursion) {
-          return { success: true, itemsRequired: [item], recipesToDo: [] }
+          return createPlanResult(true, [item], [])
         }
-        return { success: true, itemsRequired: [item], recipesToDo: [] }
+        return createPlanResult(true, [item], [])
       }
 
       seen.set(id, item)
@@ -315,16 +497,26 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
         const r = _newCraft(item, opts, seen)
         return {
           success: acc.success && r.success,
-          itemsRequired: acc.itemsRequired.concat(r.itemsRequired),
+          itemsRequiredBase: acc.itemsRequiredBase.concat(r.itemsRequiredBase),
+          itemsRequiredImmediate: [],
+          itemsRemaining: [],
+          itemsCreated: [],
           recipesToDo: r.recipesToDo.concat(acc.recipesToDo)
         }
       },
-      { success: true, itemsRequired: [] as Item[], recipesToDo: [{ recipeApplications, recipe: recipeWanted }] }
+      {
+        success: true,
+        itemsRequiredBase: [] as Item[],
+        itemsRequiredImmediate: [] as Item[],
+        itemsRemaining: [] as Item[],
+        itemsCreated: [] as Item[],
+        recipesToDo: [{ recipeApplications, recipe: recipeWanted }]
+      }
     )
 
     seen.clear()
 
-    return ret
+    return createPlanResult(ret.success, ret.itemsRequiredBase, ret.recipesToDo)
   }
 
   function newCraft (
@@ -366,7 +558,9 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
       return ret1
     }
 
-    ret.itemsRequired = []
+    ret.itemsRequiredBase = []
+    ret.itemsRequiredImmediate = []
+    ret.itemsRemaining = []
 
     const map: Record<string, number> = {}
 
@@ -467,7 +661,9 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
     for (const [key, val] of Object.entries(map)) {
       const key1 = Number(key)
       if (key1 === item.id) continue
-      ret.itemsRequired.push({ id: key1, count: val >= 0 ? 0 : -val })
+      const required = { id: key1, count: val >= 0 ? 0 : -val }
+      ret.itemsRequiredBase.push(required)
+      ret.itemsRequiredImmediate.push(required)
     }
     ret1.requiresCraftingTable = ret.recipesToDo.some((r) => r.recipe.requiresTable)
     return ret1
