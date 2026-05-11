@@ -47,7 +47,7 @@
     "mineflayer-crafting-util": "file:.",
     "mocha": "^11.1.0",
     "prismarine-block": "^1.23.0",
-    "prismarine-recipe": "^1.5.0",
+    "prismarine-recipe": "github:GenerelSchwerz/prismarine-recipe#bedrock-fix",
     "prismarine-registry": "^1.12.0",
     "ts-standard": "^12.0.2",
     "tsx": "^4.21.0",
