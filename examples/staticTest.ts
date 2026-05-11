@@ -56,7 +56,9 @@ function beautifyPlan(registry: Registry, plan: Plan): string {
 
 async function main(mcVersion: string): Promise<void> {
   const mcData = minecraftData(mcVersion);
-  const crafter = await (await import("../src")).buildStatic(mcData); // buildStatic is async
+  const prismarineRecipe = await import('prismarine-recipe');
+  const { Recipe } = prismarineRecipe.default(mcData);
+  const crafter = await (await import("../src")).buildStatic(Recipe); // buildStatic is async
 
   const wantedItemName = process.argv[2] || "wooden_pickaxe";
   const wantedAmount = parseInt(process.argv[3]) || 1;

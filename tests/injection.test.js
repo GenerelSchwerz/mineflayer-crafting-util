@@ -4,13 +4,13 @@ const craftingUtil = require('mineflayer-crafting-util')
 
 const { extractPlanDetails, findItemByNamePattern } = require('./helpers')
 
-const injectBot = craftingUtil.plugin || craftingUtil.default
 const mcVersion = process.env.MC_VERSION || '1.21.4'
 
 describe(`Bot injection for Minecraft ${mcVersion}`, function () {
   this.timeout(5000)
 
   let mcDataInstance
+  let Recipe
   let staticCrafter
   let planksItem
   let stickItem
@@ -19,7 +19,9 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
 
   before(async function () {
     mcDataInstance = mcData(mcVersion)
-    staticCrafter = await craftingUtil.buildStatic(mcDataInstance)
+    const recipeModule = require('prismarine-recipe')(mcDataInstance)
+    Recipe = recipeModule.Recipe
+    staticCrafter = await craftingUtil.buildStatic(Recipe)
     planksItem = findItemByNamePattern(mcDataInstance, [/plank/i])
     stickItem = mcDataInstance.itemsByName.stick
     woodenPickaxeItem = mcDataInstance.itemsByName.wooden_pickaxe
@@ -33,7 +35,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
       craft: async () => {}
     }
 
-    await injectBot(bot, {})
+    craftingUtil.injectCraftingFromRecipeInstance(bot, Recipe)
 
     expect(bot.planCraft).to.be.a('function')
     expect(bot.planCraftInventory).to.be.a('function')
@@ -53,7 +55,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
       }
     }
 
-    await injectBot(bot, {})
+    craftingUtil.injectCraftingFromRecipeInstance(bot, Recipe)
 
     const plan = bot.planCraftInventory({ id: stickItem.id, count: 1 })
     const extracted = extractPlanDetails(mcDataInstance, plan)
@@ -76,7 +78,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
       inventory: { slots: [] }
     }
 
-    await injectBot(bot, {})
+    craftingUtil.injectCraftingFromRecipeInstance(bot, Recipe)
 
     const injectedPlan = bot.planCraft({ id: woodenPickaxeItem.id, count: 1 })
     const staticPlan = staticCrafter({ id: woodenPickaxeItem.id, count: 1 })
@@ -103,7 +105,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
       }
     }
 
-    await injectBot(bot, {})
+    craftingUtil.injectCraftingFromRecipeInstance(bot, Recipe)
 
     const plan = bot.planCraftInventory({ id: stickItem.id, count: 1 })
     await bot.craftPlan(plan, table)
@@ -125,7 +127,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
       }
     }
 
-    await injectBot(bot, {})
+    craftingUtil.injectCraftingFromRecipeInstance(bot, Recipe)
 
     const plan = staticCrafter({ id: woodenSwordItem.id, count: 3 })
     const swordStep = plan.recipesToDo.find((info) => info.recipe.result.id === woodenSwordItem.id)
@@ -158,7 +160,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
       }
     }
 
-    await injectBot(bot, {})
+    craftingUtil.injectCraftingFromRecipeInstance(bot, Recipe)
 
     const plan = staticCrafter({ id: woodenSwordItem.id, count: 3 })
     const swordStep = plan.recipesToDo.find((info) => info.recipe.result.id === woodenSwordItem.id)
@@ -197,7 +199,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
       }
     }
 
-    await injectBot(bot, {})
+    craftingUtil.injectCraftingFromRecipeInstance(bot, Recipe)
 
     const plan = await bot.craftItem(stickItem.id, 1, table)
 
@@ -221,7 +223,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
       craft: async () => {}
     }
 
-    await injectBot(bot, {})
+    craftingUtil.injectCraftingFromRecipeInstance(bot, Recipe)
 
     const plan = bot.planCraftInventory({ id: stickItem.id, count: 1 })
     let error

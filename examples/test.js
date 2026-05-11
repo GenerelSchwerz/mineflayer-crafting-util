@@ -10,7 +10,7 @@ const bot = mineflayer.createBot({
   version: "1.21.4",
 });
 
-bot.loadPlugin(crafter);
+bot.loadPlugin(crafter());
 
 async function setup(bot, ...args) {
   const name = args[0];

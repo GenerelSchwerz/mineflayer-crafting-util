@@ -14,7 +14,8 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
 
   before(async function () {
     mcDataInstance = mcData(mcVersion)
-    crafter = await craftingUtil.buildStatic(mcDataInstance)
+    const { Recipe } = require('prismarine-recipe')(mcDataInstance)
+    crafter = await craftingUtil.buildStatic(Recipe)
   })
 
   it('replicates the staticTest example for the current version', function () {

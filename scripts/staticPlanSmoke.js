@@ -49,8 +49,9 @@ function parseAvailableItems (mcData, value) {
 async function runChild () {
   const mcData = require('minecraft-data')(process.env.MC_VERSION)
   const { buildStatic } = require('../lib')
+  const { Recipe } = require('prismarine-recipe')(mcData)
 
-  const crafter = await buildStatic(mcData)
+  const crafter = await buildStatic(Recipe)
   const wanted = mcData.itemsByName[process.env.WANTED_ITEM]
   const wantedCount = Number(process.env.WANTED_COUNT || 1)
   if (wanted == null) {

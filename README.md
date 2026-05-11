@@ -29,7 +29,7 @@ const bot = mineflayer.createBot({
   username: 'bot'
 })
 
-bot.loadPlugin(craftingUtil)
+bot.loadPlugin(craftingUtil())
 
 bot.once('spawn', async () => {
   const stick = bot.registry.itemsByName.stick
@@ -95,16 +95,16 @@ main()
 ### `plugin`
 
 ```ts
-plugin(bot: Bot, botOptions: BotOptions): Promise<void>
+plugin(recipe?: Recipe): (bot: Bot, botOptions: BotOptions) => Promise<void>
 ```
 
-Mineflayer plugin export. Use with `bot.loadPlugin(plugin)`.
+Mineflayer plugin factory export. Call it to create a plugin, then use with `bot.loadPlugin(plugin())`.
 
-The default export is the same plugin:
+The default export is the same plugin factory:
 
 ```js
 const craftingUtil = require('mineflayer-crafting-util')
-bot.loadPlugin(craftingUtil.default ?? craftingUtil.plugin)
+bot.loadPlugin((craftingUtil.default ?? craftingUtil.plugin)())
 ```
 
 ### `buildStatic`
@@ -117,7 +117,7 @@ Builds a version-specific planner from a `minecraft-data` registry.
 
 ```js
 const mcData = require('minecraft-data')('1.21.4')
-const Recipe = require('prismarine-recipe').default(mcData)
+const { Recipe } = require('prismarine-recipe')(mcData)
 const crafter = await buildStatic(Recipe)
 const plan = crafter({ id: mcData.itemsByName.stick.id, count: 4 })
 ```
