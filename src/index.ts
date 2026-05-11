@@ -2,10 +2,9 @@ import type { Bot, BotOptions } from 'mineflayer'
 import { _build } from './craft-injection'
 import { setupActualCrafting, type CraftPlanOptions } from './actual-crafting'
 import type { Item, CraftOptions, CraftingPlan } from './types'
-import { type Recipe as PRecipe } from 'prismarine-recipe';
+import { type Recipe as PRecipe } from 'prismarine-recipe'
 
 type CraftingTable = NonNullable<Parameters<Bot['craft']>[2]>
-
 
 declare module 'mineflayer' {
   interface Bot {
@@ -16,7 +15,7 @@ declare module 'mineflayer' {
   }
 }
 
-function injectCraftingFromRecipeInstance(
+function injectCraftingFromRecipeInstance (
   bot: Bot,
   Recipe: typeof PRecipe
 ): void {
@@ -24,7 +23,7 @@ function injectCraftingFromRecipeInstance(
 
   bot.planCraft = newCraft
 
-  bot.planCraftInventory = function craftWithInventory(wantedItem: Item): CraftingPlan {
+  bot.planCraftInventory = function craftWithInventory (wantedItem: Item): CraftingPlan {
     const items = bot.inventory.slots
       .filter((i): i is NonNullable<typeof i> => i != null)
       .map(i => {
@@ -47,7 +46,7 @@ function injectCraftingFromRecipeInstance(
 
 const createPlugin = (recipe?: typeof import('prismarine-recipe').Recipe) => {
   return async (bot: Bot, botoptions: BotOptions): Promise<void> => {
-    if (recipe) {
+    if (recipe != null) {
       injectCraftingFromRecipeInstance(bot, recipe)
     } else {
       const prismarineRecipe = (await import('prismarine-recipe')).default
@@ -58,8 +57,8 @@ const createPlugin = (recipe?: typeof import('prismarine-recipe').Recipe) => {
   }
 }
 
-  export default createPlugin
-  export { buildStatic } from './craft-injection'
-  export { createPlugin as plugin }
-  export { injectCraftingFromRecipeInstance }
-  export { craftItem, craftPlan, setupActualCrafting } from './actual-crafting'
+export default createPlugin
+export { buildStatic } from './craft-injection'
+export { createPlugin as plugin }
+export { injectCraftingFromRecipeInstance }
+export { craftItem, craftPlan, setupActualCrafting } from './actual-crafting'

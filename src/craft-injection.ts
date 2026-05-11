@@ -2,7 +2,6 @@
 import type { Recipe as PRecipe } from 'prismarine-recipe'
 import type { CraftOptions, Item, CraftingPlan } from './types'
 
-
 type CraftingFunc = (item: Item, opts?: CraftOptions) => CraftingPlan
 interface PlanResult {
   success: boolean
@@ -18,13 +17,28 @@ function recipeInputs (recipe: PRecipe): Item[] {
   return recipe.delta.filter((item) => item.count < 0)
 }
 
+type ItemMatcher = (wantedId: number, availableId: number) => boolean
+
+const strictItemMatcher: ItemMatcher = (wantedId, availableId) => wantedId === availableId
+
+function availableItemCount (
+  availableItems: Item[],
+  itemId: number,
+  itemMatches: ItemMatcher = strictItemMatcher
+): number {
+  return availableItems
+    .filter((item) => itemMatches(itemId, item.id))
+    .reduce((total, item) => total + item.count, 0)
+}
+
 function canCraftRecipe (
   availableItems: Item[],
   recipe: PRecipe,
-  recipeApplications: number
+  recipeApplications: number,
+  itemMatches: ItemMatcher = strictItemMatcher
 ): boolean {
   return recipeInputs(recipe).every((input) =>
-    (availableItems.find((item) => item.id === input.id)?.count ?? 0) >= -input.count * recipeApplications
+    availableItemCount(availableItems, input.id, itemMatches) >= -input.count * recipeApplications
   )
 }
 
@@ -58,11 +72,22 @@ function addItem (items: Item[], item: Item): void {
   }
 }
 
-function reserveItem (items: Item[], itemId: number, count: number): Item[] {
+function reserveItem (
+  items: Item[],
+  itemId: number,
+  count: number,
+  itemMatches: ItemMatcher = strictItemMatcher
+): Item[] {
   const reservedItems = items.map((item) => ({ ...item }))
-  const item = reservedItems.find((item) => item.id === itemId)
 
-  if (item != null) item.count -= count
+  for (const item of reservedItems) {
+    if (!itemMatches(itemId, item.id)) continue
+
+    const reserved = Math.min(item.count, count)
+    item.count -= reserved
+    count -= reserved
+    if (count <= 0) break
+  }
 
   return reservedItems.filter((item) => item.count > 0)
 }
@@ -127,7 +152,68 @@ function createPlanResult (
   }
 }
 
+function isConcretePlanForAvailableItems (
+  plan: PlanResult,
+  availableItems: Item[],
+  itemMatches: ItemMatcher = strictItemMatcher
+): boolean {
+  if (!plan.success) return true
+  if (!Array.isArray(plan.recipesToDo)) return false
+
+  const currentItems = cloneAvailableItems(availableItems)
+
+  for (const toDo of plan.recipesToDo) {
+    if (
+      toDo == null ||
+      toDo.recipe == null ||
+      toDo.recipe.result == null ||
+      !Array.isArray(toDo.recipe.delta) ||
+      !Number.isFinite(toDo.recipeApplications) ||
+      toDo.recipeApplications <= 0
+    ) {
+      return false
+    }
+
+    if (!canCraftRecipe(currentItems, toDo.recipe, toDo.recipeApplications, itemMatches)) return false
+    applyRecipeResults(currentItems, [toDo])
+  }
+
+  return true
+}
+
 export function _build (Recipe: typeof PRecipe): CraftingFunc {
+  const acceptedItemIds = new Map<number, Set<number>>()
+
+  function getAcceptedItemIds (itemId: number): Set<number> {
+    const cached = acceptedItemIds.get(itemId)
+    if (cached != null) return cached
+
+    const ids = new Set<number>([itemId])
+
+    for (const recipe of Recipe.find(itemId, null)) {
+      if (recipe.result?.id != null) ids.add(recipe.result.id)
+    }
+
+    acceptedItemIds.set(itemId, ids)
+    return ids
+  }
+
+  function itemMatchesIngredient (ingredientId: number, availableId: number): boolean {
+    return getAcceptedItemIds(ingredientId).has(availableId)
+  }
+
+  function canProvideIngredientDirectly (
+    item: Item,
+    availableItems: Item[]
+  ): boolean {
+    if (availableItemCount(availableItems, item.id, itemMatchesIngredient) >= item.count) return true
+
+    return Recipe.find(item.id, null).some((recipe) => {
+      const recipeApplications = Math.ceil(item.count / recipe.result.count)
+      return canCraftRecipe(availableItems, recipe, recipeApplications, itemMatchesIngredient)
+    })
+  }
+
   function getRecipeDeficits (
     availableItems: Item[],
     recipe: PRecipe,
@@ -136,7 +222,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
     return recipeInputs(recipe)
       .map((input) => {
         const required = -input.count * recipeApplications
-        const available = availableItems.find((item) => item.id === input.id)?.count ?? 0
+        const available = availableItemCount(availableItems, input.id, itemMatchesIngredient)
         return { id: input.id, count: required - available }
       })
       .filter((item) => item.count > 0)
@@ -259,7 +345,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
     recipes = recipes.filter((r) => r.delta.slice(0, -1).some((e) => e.id !== id))
 
     if (availableItems !== undefined) {
-      matchingItem = availableItems.find((e) => e.id === id && e.count >= target)
+      matchingItem = availableItems.find((e) => itemMatchesIngredient(id, e.id) && e.count >= target)
       if (matchingItem != null) {
         if (matchingItem.count >= target) {
           return createPlanResult(true, [], []) // already have item, no need to craft it.
@@ -280,7 +366,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
       recipeWanted = recipes.find((r) => {
         const recipeApplications = Math.ceil(count / r.result.count)
-        return canCraftRecipe(availableItems, r, recipeApplications)
+        return canCraftRecipe(availableItems, r, recipeApplications, itemMatchesIngredient)
       })
 
       if (recipeWanted == null) {
@@ -289,9 +375,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
         const scoredRecipes = recipes
           .map((recipe) => {
             const ingredients = recipeInputs(recipe).map((e) => ({ id: e.id, count: -e.count }))
-            const score = availableItems.filter(
-              (have) => ingredients.findIndex((wanted) => wanted.id === have.id && wanted.count <= have.count) !== -1
-            ).length
+            const score = ingredients.filter((ingredient) => canProvideIngredientDirectly(ingredient, availableItems)).length
 
             return { recipe, score }
           })
@@ -320,7 +404,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
           const recipeIngredients = recipeInputs(recipe)
 
           // all items that need to be crafted to craft this recipe
-          let ingredients = recipeIngredients.filter((i) => currentItems.find((e) => e.id === i.id && e.count >= -i.count) === undefined)
+          let ingredients = recipeIngredients.filter((i) => availableItemCount(currentItems, i.id, itemMatchesIngredient) < -i.count)
 
           // store all results for crafting attempts on all ingredients of current recipe
           const results: Array<ReturnType<typeof _newCraft>> = []
@@ -354,7 +438,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
               const parentInputs = recipeInputs(recipe)
               let pass = 0
 
-              while (!canCraftRecipe(attemptItems, recipe, recipeApplications)) {
+              while (!canCraftRecipe(attemptItems, recipe, recipeApplications, itemMatchesIngredient)) {
                 let madeProgress = false
                 pass++
 
@@ -362,17 +446,17 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
                 for (const input of parentInputs) {
                   const required = -input.count * recipeApplications
-                  const available = attemptItems.find((item) => item.id === input.id)?.count ?? 0
+                  const available = availableItemCount(attemptItems, input.id, itemMatchesIngredient)
                   const deficit = required - available
 
                   if (deficit <= 0) continue
 
-                  const deficitItems = reserveItem(attemptItems, input.id, available)
+                  const deficitItems = reserveItem(attemptItems, input.id, available, itemMatchesIngredient)
                   const deficitOpts: CraftOptions = {
                     ...attemptOpts,
                     availableItems: deficitItems
                   }
-                  const data = _newCraft({ id: input.id, count: deficit }, deficitOpts, new Map(candidateSeen))
+                  const data = _newCraft({ id: input.id, count: deficit }, deficitOpts, new Map(candidateSeen), deficit)
                   if (!data.success || data.recipesToDo.length === 0) continue tester
 
                   attemptRecipes.push(...data.recipesToDo)
@@ -551,6 +635,10 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
     const ret1 = ret as CraftingPlan
     // due to multiple recipes, preserve order of items required.
     if (availableItems !== undefined) {
+      if (!isConcretePlanForAvailableItems(ret, availableItems, itemMatchesIngredient)) {
+        return newCraft(item, { ...opts, availableItems: undefined })
+      }
+
       ret1.requiresCraftingTable = ret.recipesToDo.some((r) => r.recipe.requiresTable)
       return ret1
     }

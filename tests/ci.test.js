@@ -471,4 +471,37 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
       applications: 9
     })
   })
+
+  it('crafts Bedrock sticks from an oak log through generic plank ingredients', async function () {
+    const bedrockData = mcData('bedrock_1.21.130')
+    const { Recipe } = require('prismarine-recipe')(bedrockData)
+    const bedrockCrafter = await craftingUtil.buildStatic(Recipe)
+
+    const plan = bedrockCrafter(
+      { id: bedrockData.itemsByName.stick.id, count: 1 },
+      {
+        availableItems: [{ id: bedrockData.itemsByName.oak_log.id, count: 1 }],
+        careAboutExisting: false,
+        includeRecursion: true,
+        multipleRecipes: true
+      }
+    )
+    const extracted = extractPlanDetails(bedrockData, plan)
+
+    expect(plan.success).to.equal(true)
+    expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
+
+    expectPlanStep(extracted.plans, {
+      ingredients: [{ count: -1, nameIncludes: 'oak_log' }],
+      result: { count: 4, nameIncludes: 'oak_planks' },
+      applications: 1
+    })
+    expectPlanStep(extracted.plans, {
+      ingredients: [{ count: -2, nameIncludes: 'planks' }],
+      result: { count: 4, nameIncludes: 'stick' },
+      applications: 1
+    })
+  })
 })
