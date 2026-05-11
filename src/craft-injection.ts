@@ -4,8 +4,6 @@ import type { CraftOptions, Item, CraftingPlan } from './types'
 
 import type { IndexedData } from 'minecraft-data'
 
-const gettableItems = [263, 264, 265, 266, 296, 331, 341, 388] // TODO : should be replaced by smelting recipe data
-
 type CraftingFunc = (item: Item, opts?: CraftOptions) => CraftingPlan
 interface PlanResult {
   success: boolean
@@ -271,7 +269,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
         }
       }
 
-      if (recipes.length === 0 || gettableItems.includes(id)) {
+      if (recipes.length === 0) {
         return createPlanResult(true, [item], [])
       }
 
@@ -436,7 +434,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
         }
 
         // TODO can implement partial completion of recipes here.
-        const hasNoRecipes = recipes.length === 0 || gettableItems.includes(id)
+        const hasNoRecipes = recipes.length === 0
         const weHaveItem = availableItems.find((e) => e.id === id && e.count >= count)
         if (hasNoRecipes && weHaveItem != null) {
           return createPlanResult(true, [], [])
@@ -474,7 +472,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
       const found = recipes.find((r) => r.result.count > 1)
       recipeWanted = found ?? recipes[0]
 
-      if (recipes.length === 0 || gettableItems.includes(id)) {
+      if (recipes.length === 0) {
         return createPlanResult(true, [item], [])
       }
 
