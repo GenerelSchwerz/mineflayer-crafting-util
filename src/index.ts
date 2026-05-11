@@ -2,8 +2,10 @@ import type { Bot, BotOptions } from 'mineflayer'
 import { _build } from './craft-injection'
 import { setupActualCrafting, type CraftPlanOptions } from './actual-crafting'
 import type { Item, CraftOptions, CraftingPlan } from './types'
+import PrisRecipe, { type Recipe as PRecipe } from 'prismarine-recipe';
 
 type CraftingTable = NonNullable<Parameters<Bot['craft']>[2]>
+
 
 declare module 'mineflayer' {
   interface Bot {
@@ -14,15 +16,24 @@ declare module 'mineflayer' {
   }
 }
 
-async function injectBot (bot: Bot, botoptions: BotOptions): Promise<void> {
-  // @ts-expect-error
-  const Recipe = (await import('prismarine-recipe')).default(bot.registry).Recipe
+function injectCraftingFromRecipeInstance(
+  bot: Bot,
+  Recipe: typeof PRecipe
+): void {
   const newCraft = _build(Recipe)
 
   bot.planCraft = newCraft
 
-  function craftWithInventory (wantedItem: Item): CraftingPlan {
-    const items = bot.inventory.slots.filter(i => !(i == null)).map(i => { return { id: i.type, count: i.count } })
+  bot.planCraftInventory = function craftWithInventory(wantedItem: Item): CraftingPlan {
+    const items = bot.inventory.slots
+      .filter((i): i is NonNullable<typeof i> => i != null)
+      .map(i => {
+        return {
+          id: i.type,
+          count: i.count
+        }
+      })
+
     return newCraft(wantedItem, {
       availableItems: items,
       careAboutExisting: false,
@@ -31,11 +42,24 @@ async function injectBot (bot: Bot, botoptions: BotOptions): Promise<void> {
     })
   }
 
-  bot.planCraftInventory = craftWithInventory
   setupActualCrafting(bot)
 }
 
-export default injectBot
-export { buildStatic } from './craft-injection'
-export { injectBot as plugin }
-export { craftItem, craftPlan, setupActualCrafting } from './actual-crafting'
+const createPlugin = (recipe?: typeof import('prismarine-recipe').Recipe) => {
+  return async (bot: Bot, botoptions: BotOptions): Promise<void> => {
+    if (recipe) {
+      injectCraftingFromRecipeInstance(bot, recipe)
+    } else {
+      const prismarineRecipe = (await import('prismarine-recipe')).default
+      // @ts-expect-error prismarine-recipe's default export is not typed cleanly here
+      const recipeInstance = prismarineRecipe(bot.registry)
+      injectCraftingFromRecipeInstance(bot, recipeInstance.Recipe)
+    }
+  }
+}
+
+  export default createPlugin
+  export { buildStatic } from './craft-injection'
+  export { createPlugin as plugin }
+  export { injectCraftingFromRecipeInstance }
+  export { craftItem, craftPlan, setupActualCrafting } from './actual-crafting'
