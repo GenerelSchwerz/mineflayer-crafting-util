@@ -68,7 +68,7 @@ const mcData = require('minecraft-data')('1.21.4')
 const { buildStatic } = require('mineflayer-crafting-util')
 
 async function main () {
-  const Recipe = require('prismarine-recipe').default(mcData)
+  const { Recipe } = require('prismarine-recipe')(mcData)
   const crafter = await buildStatic(Recipe)
   const pickaxe = mcData.itemsByName.stone_pickaxe
 
