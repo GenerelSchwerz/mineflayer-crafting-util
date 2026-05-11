@@ -2,7 +2,7 @@ import type { Bot, BotOptions } from 'mineflayer'
 import { _build } from './craft-injection'
 import { setupActualCrafting, type CraftPlanOptions } from './actual-crafting'
 import type { Item, CraftOptions, CraftingPlan } from './types'
-import PrisRecipe, { type Recipe as PRecipe } from 'prismarine-recipe';
+import { type Recipe as PRecipe } from 'prismarine-recipe';
 
 type CraftingTable = NonNullable<Parameters<Bot['craft']>[2]>
 
