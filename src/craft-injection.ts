@@ -2,7 +2,6 @@
 import type { Recipe as PRecipe } from 'prismarine-recipe'
 import type { CraftOptions, Item, CraftingPlan } from './types'
 
-import type { IndexedData } from 'minecraft-data'
 
 type CraftingFunc = (item: Item, opts?: CraftOptions) => CraftingPlan
 interface PlanResult {

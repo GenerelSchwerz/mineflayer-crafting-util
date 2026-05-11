@@ -44,7 +44,8 @@ function beautifyPlan(registry, plan) {
 
 async function main(mcVersion) {
   const mcData = require("minecraft-data")(mcVersion);
-  const crafter = await require("../lib").buildStatic(mcData); // buildStatic is async
+  const Recipe = require("prismarine-recipe").default(mcData);
+  const crafter = await require("../lib").buildStatic(Recipe); // buildStatic is async
 
   const wantedItemName = process.argv[2] || "wooden_sword";
   const wantedAmount = parseInt(process.argv[3]) || 3;

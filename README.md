@@ -68,7 +68,8 @@ const mcData = require('minecraft-data')('1.21.4')
 const { buildStatic } = require('mineflayer-crafting-util')
 
 async function main () {
-  const crafter = await buildStatic(mcData)
+  const Recipe = require('prismarine-recipe').default(mcData)
+  const crafter = await buildStatic(Recipe)
   const pickaxe = mcData.itemsByName.stone_pickaxe
 
   const plan = crafter(
@@ -116,7 +117,8 @@ Builds a version-specific planner from a `minecraft-data` registry.
 
 ```js
 const mcData = require('minecraft-data')('1.21.4')
-const crafter = await buildStatic(mcData)
+const Recipe = require('prismarine-recipe').default(mcData)
+const crafter = await buildStatic(Recipe)
 const plan = crafter({ id: mcData.itemsByName.stick.id, count: 4 })
 ```
 
