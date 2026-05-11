@@ -670,8 +670,6 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
   return newCraft
 }
 
-export async function buildStatic (registry: IndexedData): Promise<CraftingFunc> {
-  // @ts-expect-error
-  const Recipe = (await import('prismarine-recipe')).default(registry).Recipe
+export async function buildStatic (Recipe: typeof PRecipe): Promise<CraftingFunc> {
   return _build(Recipe)
 }
