@@ -37,7 +37,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     const extracted = extractPlanDetails(mcDataInstance, plan)
     const usesModernWoodNames = mcDataInstance.isNewerOrEqualTo('1.21.4')
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase).to.deep.equal([])
     expect(plan.itemsRequiredImmediate).to.deep.equal([])
     expect(plan.itemsRemaining).to.deep.equal([])
@@ -115,7 +115,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     const unconstrainedPlan = crafter({ id: wantedItem.id, count: 1 })
     const unconstrained = extractPlanDetails(mcDataInstance, unconstrainedPlan)
 
-    expect(unconstrainedPlan.success).to.equal(true)
+    expect(unconstrainedPlan.status).to.equal('complete')
     expectPlanStep(unconstrained.plans, {
       ingredients: [
         { count: -3, nameIncludes: 'cobbl' },
@@ -138,7 +138,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
@@ -183,7 +183,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
@@ -228,7 +228,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
@@ -274,7 +274,9 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(false)
+    expect(plan.status).to.equal('partial_complete')
+    expect(plan.itemsRequiredBase.some((item) => item.count === 0)).to.equal(false)
+    expect(plan.itemsRequiredImmediate.some((item) => item.count === 0)).to.equal(false)
     expect(plan.recipesToDo).not.to.deep.equal([])
     expect(extracted.itemsRequiredBase).to.deep.equal([{ name: 'oak_log', count: 1 }])
     expect(extracted.itemsRequiredImmediate).to.deep.equal([{ name: 'stick', count: 2 }])
@@ -304,7 +306,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(false)
+    expect(plan.status).to.equal('partial_complete')
     expect(extracted.itemsRequiredBase).to.deep.equal([{ name: woodItem.name, count: 1 }])
     expect(extracted.itemsRequiredImmediate).to.deep.equal([{ name: 'stick', count: 2 }])
     expect(extracted.itemsRemaining).to.deep.equal([{ name: 'iron_pickaxe', count: 1 }])
@@ -333,7 +335,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(extracted.itemsRequiredBase).to.deep.equal([])
     expect(extracted.itemsRequiredImmediate).to.deep.equal([])
     expect(extracted.itemsRemaining).to.deep.equal([])
@@ -366,7 +368,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
       }
     )
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
   })
 
   it('splits partial available-item plans into base, immediate, remaining, and created items', function () {
@@ -388,7 +390,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(false)
+    expect(plan.status).to.equal('partial_complete')
     expect(extracted.itemsRequiredBase).to.deep.equal([{ name: 'oak_log', count: 1 }])
     expect(extracted.itemsRequiredImmediate).to.deep.equal([{ name: 'oak_planks', count: 4 }])
     expect(extracted.itemsRemaining).to.deep.equal([{ name: 'stick', count: 6 }])
@@ -422,7 +424,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
@@ -456,7 +458,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(mcDataInstance, plan)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
@@ -488,7 +490,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(bedrockData, plan)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
@@ -521,7 +523,7 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
     )
     const extracted = extractPlanDetails(bedrockData, plan)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
     expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])

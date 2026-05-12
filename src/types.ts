@@ -15,8 +15,10 @@ export interface RecipeInfo {
 
 }
 
+export type CraftingPlanStatus = 'complete' | 'partial_complete' | 'failure' | 'unknown'
+
 export interface CraftingPlan {
-  success: boolean
+  status: CraftingPlanStatus
   itemsRequiredBase: Item[]
   itemsRequiredImmediate: Item[]
   itemsRemaining: Item[]

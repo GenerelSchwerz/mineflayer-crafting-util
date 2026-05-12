@@ -1,10 +1,10 @@
 /* eslint-disable no-labels */
 import type { Recipe as PRecipe } from 'prismarine-recipe'
-import type { CraftOptions, Item, CraftingPlan } from './types'
+import type { CraftOptions, Item, CraftingPlan, CraftingPlanStatus } from './types'
 
 type CraftingFunc = (item: Item, opts?: CraftOptions) => CraftingPlan
 interface PlanResult {
-  success: boolean
+  status: CraftingPlanStatus
   itemsRequiredBase: Item[]
   itemsRequiredImmediate: Item[]
   itemsRemaining: Item[]
@@ -185,8 +185,20 @@ function summarizeItemsCreated (
     .map(([id, count]) => ({ id, count }))
 }
 
+function isCompleteStatus (status: CraftingPlanStatus): boolean {
+  return status === 'complete'
+}
+
+function deriveStatus (
+  complete: boolean,
+  recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>
+): CraftingPlanStatus {
+  if (complete) return 'complete'
+  return recipesToDo.length > 0 ? 'partial_complete' : 'failure'
+}
+
 function createPlanResult (
-  success: boolean,
+  complete: boolean,
   itemsRequiredBase: Item[],
   recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>,
   itemsCreated = summarizeItemsCreated(recipesToDo),
@@ -194,7 +206,7 @@ function createPlanResult (
   itemsRemaining: Item[] = []
 ): PlanResult {
   return {
-    success,
+    status: deriveStatus(complete, recipesToDo),
     itemsRequiredBase,
     itemsRequiredImmediate,
     itemsRemaining,
@@ -208,7 +220,7 @@ function isConcretePlanForAvailableItems (
   availableItems: Item[],
   itemMatches: ItemMatcher = strictItemMatcher
 ): boolean {
-  if (!plan.success) return true
+  if (!isCompleteStatus(plan.status)) return true
   if (!Array.isArray(plan.recipesToDo)) return false
 
   const currentItems = cloneAvailableItems(availableItems)
@@ -463,7 +475,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
           // do craft on all ingredients of current recipe
           inner: for (const ing of ingredients) {
             const data = _newCraft({ id: ing.id, count: -ing.count }, candidateOpts, new Map(candidateSeen))
-            if (!data.success) continue inner
+            if (!isCompleteStatus(data.status)) continue inner
             results.push(data)
 
             candidateRecipes.push(...data.recipesToDo)
@@ -505,7 +517,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
                     availableItems: deficitItems
                   }
                   const data = _newCraft({ id: input.id, count: deficit }, deficitOpts, new Map(candidateSeen), deficit)
-                  if (!data.success || data.recipesToDo.length === 0) continue tester
+                  if (!isCompleteStatus(data.status) || data.recipesToDo.length === 0) continue tester
 
                   attemptRecipes.push(...data.recipesToDo)
                   replaceItems(attemptItems, deficitItems)
@@ -548,7 +560,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
                   count - craftedCount
                 )
 
-                if (data.success) {
+                if (isCompleteStatus(data.status)) {
                   return createPlanResult(
                     true,
                     ret0.concat(data.itemsRequiredBase),
@@ -594,7 +606,11 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
             return createPlanResult(false, [new1], [])
           } else {
             const data = _newCraft({ id, count: count - craftedCount }, opts, seen, target)
-            return createPlanResult(data.success, ret0.concat(data.itemsRequiredBase), ret1.concat(data.recipesToDo))
+            return createPlanResult(
+              isCompleteStatus(data.status),
+              ret0.concat(data.itemsRequiredBase),
+              ret1.concat(data.recipesToDo)
+            )
           }
         }
       }
@@ -625,7 +641,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
       (acc, item) => {
         const r = _newCraft(item, opts, seen)
         return {
-          success: acc.success && r.success,
+          status: deriveStatus(isCompleteStatus(acc.status) && isCompleteStatus(r.status), []),
           itemsRequiredBase: acc.itemsRequiredBase.concat(r.itemsRequiredBase),
           itemsRequiredImmediate: [],
           itemsRemaining: [],
@@ -634,7 +650,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
         }
       },
       {
-        success: true,
+        status: 'complete' as CraftingPlanStatus,
         itemsRequiredBase: [] as Item[],
         itemsRequiredImmediate: [] as Item[],
         itemsRemaining: [] as Item[],
@@ -645,7 +661,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
     seen.clear()
 
-    return createPlanResult(ret.success, ret.itemsRequiredBase, ret.recipesToDo)
+    return createPlanResult(isCompleteStatus(ret.status), ret.itemsRequiredBase, ret.recipesToDo)
   }
 
   function newCraft (
@@ -794,7 +810,8 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
     for (const [key, val] of Object.entries(map)) {
       const key1 = Number(key)
       if (key1 === item.id) continue
-      const required = { id: key1, count: val >= 0 ? 0 : -val }
+      if (val >= 0) continue
+      const required = { id: key1, count: -val }
       ret.itemsRequiredBase.push(required)
       ret.itemsRequiredImmediate.push(required)
     }

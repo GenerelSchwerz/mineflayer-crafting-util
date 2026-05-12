@@ -38,8 +38,8 @@ export async function craftPlan (
     throw new Error('craftingTable is required')
   }
 
-  if (!plan.success) {
-    throw new Error('Cannot craft an unsuccessful crafting plan')
+  if (plan.status !== 'complete') {
+    throw new Error(`Cannot craft a plan with status "${plan.status}"`)
   }
   // it is so dumb that I have to support this but whatever.
   for (const info of plan.recipesToDo) {

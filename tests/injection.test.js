@@ -61,7 +61,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
     const extracted = extractPlanDetails(mcDataInstance, plan)
     const staticPlan = staticCrafter({ id: stickItem.id, count: 1 }, { availableItems: [{ id: planksItem.id, count: 2 }] })
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(plan.itemsRequiredBase).to.deep.equal([])
     expect(plan.itemsRequiredImmediate).to.deep.equal([])
     expect(plan.itemsRemaining).to.deep.equal([])
@@ -132,7 +132,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
     const plan = staticCrafter({ id: woodenSwordItem.id, count: 3 })
     const swordStep = plan.recipesToDo.find((info) => info.recipe.result.id === woodenSwordItem.id)
     const swordPlan = {
-      success: true,
+      status: 'complete',
       itemsRequiredBase: [],
       itemsRequiredImmediate: [],
       itemsRemaining: [],
@@ -165,7 +165,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
     const plan = staticCrafter({ id: woodenSwordItem.id, count: 3 })
     const swordStep = plan.recipesToDo.find((info) => info.recipe.result.id === woodenSwordItem.id)
     const swordPlan = {
-      success: true,
+      status: 'complete',
       itemsRequiredBase: [],
       itemsRequiredImmediate: [],
       itemsRemaining: [],
@@ -203,7 +203,7 @@ describe(`Bot injection for Minecraft ${mcVersion}`, function () {
 
     const plan = await bot.craftItem(stickItem.id, 1, table)
 
-    expect(plan.success).to.equal(true)
+    expect(plan.status).to.equal('complete')
     expect(calls).to.have.lengthOf(1)
     expect(calls[0].recipe).to.equal(plan.recipesToDo[0].recipe)
     expect(calls[0].count).to.equal(plan.recipesToDo[0].recipeApplications)
