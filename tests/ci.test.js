@@ -504,4 +504,50 @@ describe(`Crafting Tests for Minecraft ${mcVersion}`, function () {
       applications: 1
     })
   })
+
+  it('crafts a Bedrock wooden pickaxe from oak logs without falling back to crimson recipes', async function () {
+    const bedrockData = mcData('bedrock_1.21.130')
+    const { Recipe } = require('prismarine-recipe')(bedrockData)
+    const bedrockCrafter = await craftingUtil.buildStatic(Recipe)
+
+    const plan = bedrockCrafter(
+      { id: bedrockData.itemsByName.wooden_pickaxe.id, count: 1 },
+      {
+        availableItems: [{ id: bedrockData.itemsByName.oak_log.id, count: 2 }],
+        careAboutExisting: false,
+        includeRecursion: true,
+        multipleRecipes: true
+      }
+    )
+    const extracted = extractPlanDetails(bedrockData, plan)
+
+    expect(plan.success).to.equal(true)
+    expect(plan.itemsRequiredBase.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRequiredImmediate.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(plan.itemsRemaining.filter((item) => item.count > 0)).to.deep.equal([])
+    expect(extracted.plans).to.have.lengthOf(4)
+    expect(extracted.plans.some((step) =>
+      step.ingredients.some((item) => item.name.includes('crimson')) ||
+      step.result.name.includes('crimson')
+    )).to.equal(false)
+
+    expectPlanStep(extracted.plans, {
+      ingredients: [{ count: -1, nameIncludes: 'oak_log' }],
+      result: { count: 4, nameIncludes: 'oak_planks' },
+      applications: 1
+    })
+    expectPlanStep(extracted.plans, {
+      ingredients: [{ count: -2, nameIncludes: 'planks' }],
+      result: { count: 4, nameIncludes: 'stick' },
+      applications: 1
+    })
+    expectPlanStep(extracted.plans, {
+      ingredients: [
+        { count: -3, nameIncludes: 'planks' },
+        { count: -2, nameIncludes: 'stick' }
+      ],
+      result: { count: 1, nameIncludes: 'wooden_pickaxe' },
+      applications: 1
+    })
+  })
 })

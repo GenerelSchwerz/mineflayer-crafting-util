@@ -42,12 +42,63 @@ function canCraftRecipe (
   )
 }
 
+function recipeAvailabilityScore (
+  availableItems: Item[],
+  recipe: PRecipe,
+  recipeApplications: number,
+  itemMatches: ItemMatcher = strictItemMatcher
+): number {
+  return recipeInputs(recipe).reduce((score, input) => {
+    const required = -input.count * recipeApplications
+    const strictAvailable = Math.min(required, availableItemCount(availableItems, input.id))
+    const matchedAvailable = Math.min(required, availableItemCount(availableItems, input.id, itemMatches))
+
+    return score + strictAvailable * 2 + matchedAvailable
+  }, 0)
+}
+
+function findBestCraftableRecipe (
+  availableItems: Item[],
+  recipes: PRecipe[],
+  count: number,
+  itemMatches: ItemMatcher = strictItemMatcher
+): PRecipe | undefined {
+  return recipes
+    .map((recipe, index) => {
+      const recipeApplications = Math.ceil(count / recipe.result.count)
+      const craftable = canCraftRecipe(availableItems, recipe, recipeApplications, itemMatches)
+      const score = craftable
+        ? recipeAvailabilityScore(availableItems, recipe, recipeApplications, itemMatches)
+        : -1
+
+      return { recipe, index, score }
+    })
+    .filter(({ score }) => score >= 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index)[0]?.recipe
+}
+
 function applyRecipeResults (
   items: Item[],
-  recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>
+  recipesToDo: Array<{ recipeApplications: number, recipe: PRecipe }>,
+  itemMatches: ItemMatcher = strictItemMatcher
 ): void {
   for (const toDo of recipesToDo) {
     for (const item of toDo.recipe.delta) {
+      if (item.count < 0) {
+        let count = -item.count * toDo.recipeApplications
+
+        for (const existingItem of items) {
+          if (!itemMatches(item.id, existingItem.id)) continue
+
+          const consumed = Math.min(existingItem.count, count)
+          existingItem.count -= consumed
+          count -= consumed
+          if (count <= 0) break
+        }
+
+        continue
+      }
+
       const index = items.findIndex((e) => e.id === item.id)
       if (index !== -1) {
         items[index].count += item.count * toDo.recipeApplications
@@ -175,7 +226,7 @@ function isConcretePlanForAvailableItems (
     }
 
     if (!canCraftRecipe(currentItems, toDo.recipe, toDo.recipeApplications, itemMatches)) return false
-    applyRecipeResults(currentItems, [toDo])
+    applyRecipeResults(currentItems, [toDo], itemMatches)
   }
 
   return true
@@ -288,7 +339,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
   ): { itemsRequiredBase: Item[], itemsRequiredImmediate: Item[], itemsRemaining: Item[] } {
     const remaining = [{ id: itemId, count: remainingCount }]
     const currentItems = cloneAvailableItems(availableItems)
-    applyRecipeResults(currentItems, recipesToDo)
+    applyRecipeResults(currentItems, recipesToDo, itemMatchesIngredient)
 
     let completionRecipe: PRecipe | undefined
     for (let i = recipesToDo.length - 1; i >= 0; i--) {
@@ -364,10 +415,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
 
       seen.set(id, item)
 
-      recipeWanted = recipes.find((r) => {
-        const recipeApplications = Math.ceil(count / r.result.count)
-        return canCraftRecipe(availableItems, r, recipeApplications, itemMatchesIngredient)
-      })
+      recipeWanted = findBestCraftableRecipe(availableItems, recipes, count, itemMatchesIngredient)
 
       if (recipeWanted == null) {
         // since no recipes exist with all items available, search for the recipe with the most amount of items available inline
@@ -419,7 +467,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
             results.push(data)
 
             candidateRecipes.push(...data.recipesToDo)
-            applyRecipeResults(currentItems, data.recipesToDo)
+            applyRecipeResults(currentItems, data.recipesToDo, itemMatchesIngredient)
           }
 
           // if we successfully crafted all ingredients, we can craft this recipe
@@ -462,7 +510,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
                   attemptRecipes.push(...data.recipesToDo)
                   replaceItems(attemptItems, deficitItems)
                   if (available > 0) addItem(attemptItems, { id: input.id, count: available })
-                  applyRecipeResults(attemptItems, data.recipesToDo)
+                  applyRecipeResults(attemptItems, data.recipesToDo, itemMatchesIngredient)
                   madeProgress = true
                 }
 
@@ -479,7 +527,7 @@ export function _build (Recipe: typeof PRecipe): CraftingFunc {
             if (test === undefined) continue outer
 
             candidateRecipes.push(...test.recipesToDo)
-            applyRecipeResults(currentItems, test.recipesToDo)
+            applyRecipeResults(currentItems, test.recipesToDo, itemMatchesIngredient)
             if (craftedCount > bestPartialCount) {
               bestPartialCount = craftedCount
               bestPartialRecipes = [...candidateRecipes]
